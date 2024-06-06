@@ -1,5 +1,5 @@
 {
-  "name": "canary-ops-site",
+  "name": "blog-site",
   "version": "2.2.1",
   "private": true,
   "scripts": {
