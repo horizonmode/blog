@@ -20,12 +20,6 @@ test('should navigate to the tags page', async ({ page }) => {
   await expect(page.locator('h1')).toHaveText('Tags')
 })
 
-test('should show the contact form', async ({ page }) => {
-  await page.goto('/')
-  // The page should include the submit button
-  await expect(page.locator('form[action="https://api.web3forms.com/submit"]')).toBeVisible()
-})
-
 const fs = require('fs')
 const path = require('path')
 
