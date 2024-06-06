@@ -1,0 +1,86 @@
+---
+title: Designing DevOps Pipelines for the Main Branch in a Feature-Branch Workflow
+date: '2024-01-13'
+tags: ['bnmp', 'devops', 'github-actions', 'infastructure-as-code', 'strategy']
+draft: false
+summary: Analysis and Design of CI/CD Pipelines for the Main Branch in a Feature-Branch Workflow
+---
+
+One challenge with implementing Devops pipelines is descibing their underlying logic and assumptions. 
+The yaml files themselves become complex and evolve quickly over time, making 
+it difficult to look at an existing pipeline and quickly decipher. To address this
+we can use a diagram standard such as BNMP to describe the high-level workflow. 
+This is above and before implementation takes place. This design and planning activity
+describes the objectives and logic of the workflow, and may not always map 1:1 to specific tasks
+in the pipeline.
+
+## Source Control Branching Strategy
+
+We subscribe to the [Feature-Branch workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).
+This consists of a main branch and short-lived feature branches which are reviewed and merged using the Pull-Request mechanism.
+
+### BPMN
+
+This article uses [BPMN](https://www.bpmn.org) as a diagram standard. This is a standard for describing business
+processes in general. The notation is outside the scope of this article, however hopefully it's intuitive enough 
+to get started without learning this in detail.
+
+### Main Branch Workflow
+
+To give an example of BPMN in action, here is our abstract approach to all deployments regardless of tech-stack:
+
+![Workflow Diagram](/static/images/swa_bpmn_main.svg)
+
+This is a simplified workflow to demonstrate they key stages involved in a typical CI/CD process. 
+It's important to recognise that each step is it's own sub-workflow.
+
+### Validate Entry Criteria
+
+Ensure the branch and files included in the change meet the requirements of this pipeline. Entry 
+criteria could also cover include check against commit standards.
+
+### Execute Build
+
+An abstract task to represent building an app. The implementation of this 
+will be different for container-based workloads vs standalone. It will also
+vary depending on tech stack.
+
+### Run Integration Tests
+
+Run integration tests against the build in the previous step. This can include
+unit tests. No external urls are used in this step. The execution
+will vary depending on which library used (Jest, Mocha, NUnit, MSTest etc).
+
+### Provision Test Environment
+
+Use Infrastructure as Code to provision a test environment. This step 
+should also include validating Infrstructure as Code scripts.
+Implementation will vary depending on the tool of choice (Terraform, Bicep etc).
+
+### Deploy to Test Environment 
+
+Deploy the build to a test environment. This should be 
+logically separate to the production environment with it's own URL. 
+We will use this test environment to run automated tests.
+
+### Execute E2E Tests
+
+We run E2E tests against the deployed site using the test URL. 
+These tests should validate critical functionality work as expected, such as submitting a form, 
+logging in and navigation.
+
+### Provision Production Environment
+
+Using the same Infrastructure as Code scripts as the test environment we provision the 
+production environment. This may already exist, but as IaC scripts
+should be idempotent we can run this script on every deploy. Environment variables
+for production should be in GitHub or an external config manager to 
+support this environment. 
+
+### Deploy to Production
+
+We deploy the same build artifact as we deployed to test. 
+This step may also define a progressive rollout strategy such as Red/Green or Canary Deployments. 
+We might also run smoke tests at this stage. 
+
+In the next article we will look at the PR worflow.

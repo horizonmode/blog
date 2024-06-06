@@ -1,0 +1,132 @@
+name: Build and Push to Static Web App (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+jobs:
+  validate_entry:
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            infra:
+               - 'infra/**'
+            src:
+               - 'src/**'
+
+  validate_bicep:
+    secrets: inherit
+    needs: validate_entry
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && needs.validate_entry.outputs.infra == true
+    uses: ./.github/workflows/bicep_what_if.yml
+    with:
+      bicepMainPath: "./infra/swa/main.bicep"
+      params: "appName=${{ vars.SWA_APP_NAME }}"
+      resourceGroup: ${{ vars.SWA_RG }}
+
+  build_job:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && needs.validate_entry.outputs.src == true
+    runs-on: ubuntu-latest
+    name: Build Job
+    needs: validate_entry
+    env:
+      NEXT_UMAMI_ID: ${{ secrets.NEXT_UMAMI_ID }}
+      NEXT_PUBLIC_GISCUS_REPO: ${{ vars.NEXT_PUBLIC_GISCUS_REPO }}
+      NEXT_PUBLIC_GISCUS_REPOSITORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_REPOSITORY_ID }}
+      NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
+      NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "src/package-lock.json"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: src/out
+
+  run_integration_tests:
+    needs: build_job
+    secrets: inherit
+    uses: ./.github/workflows/jest.yml
+
+  deploy_to_preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    needs: run_integration_tests
+    name: Deploy to Preview
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: "Login to Azure"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Deployment Token for Static Web App
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            APIKEY=$(az staticwebapp secrets list --name ${{ vars.SWA_APP_NAME }} | jq -r '.properties.apiKey')
+            echo "STATIC_DEPLOYMENT_TOKEN=$APIKEY" >> $GITHUB_ENV
+
+      - name: Deploy to Preview
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.STATIC_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: "upload"
+          skip_app_build: true
+          app_location: "build"
+
+  close_pull_request_job:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    name: Close Pull Request Job
+    steps:
+      - name: "Login to Azure"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Deployment Token for Static Web App
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            APIKEY=$(az staticwebapp secrets list --name ${{ vars.SWA_APP_NAME }} | jq -r '.properties.apiKey')
+            echo "STATIC_DEPLOYMENT_TOKEN=$APIKEY" >> $GITHUB_ENV
+
+      - name: Close Pull Request
+        id: closepullrequest
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.STATIC_DEPLOYMENT_TOKEN }}
+          action: "close"

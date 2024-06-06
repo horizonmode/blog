@@ -1,0 +1,23 @@
+name: Provision Base Infrastructure Static Web App
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Create Static Web App
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ vars.SWA_RG }}
+          template: ./infra/swa/main.bicep
+          parameters: "appName=${{ vars.SWA_APP_NAME }}"
+          failOnStdErr: false

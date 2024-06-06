@@ -1,0 +1,65 @@
+on: workflow_dispatch
+
+name: Build, Test and Push Image to Production
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+
+      - name: "Filter Only Infra Changes"
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+
+      - name: "Build and push image"
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+
+      - run: |
+          docker build src -t '${{ secrets.REGISTRY_LOGIN_SERVER }}/blog:${{ github.sha }}' -t '${{ secrets.REGISTRY_LOGIN_SERVER }}/blog:production'
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/blog --all-tags
+
+  deploy-base-infra:
+    needs: build-and-deploy
+    secrets: inherit
+    uses: ./.github/workflows/base_infra.yml
+
+  deploy-container-app:
+    runs-on: ubuntu-latest
+    needs: deploy-base-infra
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+
+      - name: "Filter Only Infra Changes"
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Deploy Container App
+        uses: azure/container-apps-deploy-action@v1
+        with:
+          acrName: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          containerAppName: ${{ secrets.CONTAINER_APP_NAME }}
+          resourceGroup: ${{ secrets.CONTAINER_APP_RG }}
+          imageToDeploy: ${{ secrets.REGISTRY_LOGIN_SERVER }}/blog:${{ github.sha }}

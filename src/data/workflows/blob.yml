@@ -1,0 +1,40 @@
+on: workflow_dispatch
+name: Build and Push to Storage Account
+
+jobs:
+  deploy-base-infra:
+    secrets: inherit
+    uses: ./.github/workflows/base_infra_blob.yml
+
+  deploy-static:
+    runs-on: ubuntu-latest
+    needs: deploy-base-infra
+
+    steps:
+      - uses: actions/checkout@v3
+      - uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload to blob storage
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            az storage blob upload-batch --account-name ${{ secrets.APP_NAME }} --overwrite true --auth-mode key -d '$web' -s src/out
+      # Azure logout
+      - name: logout
+        run: |
+          az logout
+        if: always()

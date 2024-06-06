@@ -1,0 +1,58 @@
+---
+title: Designing DevOps Pipelines for Pull Requests in a Feature-Branch Workflow
+date: '2024-01-20'
+tags: ['bnmp', 'devops', 'github-actions', 'infastructure-as-code', 'strategy']
+draft: false
+summary: Analysis and Design of CI/CD Pipelines for Pull Requests in a Feature-Branch Workflow
+---
+
+In the previous article, we looked at designing a pipeline for the main branch in a Feature-Branch workflow. 
+Now we will consider the logic for a pipeline for Pull-Request triggers.
+
+## Source Control Branching Strategy
+
+We subscribe to the [Feature-Branch workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).
+This consists of a main branch and short-lived feature branches which are reviewed and merged using the Pull-Request mechanism.
+
+### BPMN
+
+This article uses [BPMN](https://www.bpmn.org) as a diagram standard. This is a standard for describing business
+processes in general. The notation is outside the scope of this article, however hopefully it's intuitive enough 
+to get started without learning this in detail.
+
+### PR Branch Workflow
+
+To give an example of BPMN in action, here is our abstract approach to all deployments regardless of tech-stack:
+
+![Workflow Diagram](/static/images/swa_bpmn_pr.svg)
+
+Again, it's important to recognise that each step is it's own sub-workflow.
+
+### Validate Entry Criteria
+
+Ensure the branch and files included in the change meet the requirements of this pipeline. Entry 
+criteria could also cover include check against commit standards such as having 
+a linked work-item or ticket in the comments.
+
+### Execute Build
+
+An abstract task to represent building an app. The implementation of this 
+will be different for container-based workloads vs standalone. It will also
+vary depending on tech stack.
+
+### Run Integration Tests
+
+Run integration tests against the build in the previous step. This can include
+unit tests. No external urls are used in this step. The execution
+will vary depending on which library used (Jest, Mocha, NUnit, MSTest etc).
+
+### Provision Preview Environment
+
+Use Infrastructure as Code to provision a preview environment. This step 
+should also include validating Infrstructure as Code scripts.
+Implementation will vary depending on the tool of choice (Terraform, Bicep etc).
+
+### Deploy to Preview Environment 
+
+Deploy the build to a preview environment. This should have it's own URL. 
+We will use this test environment for developers or testers to review the PR.

@@ -1,0 +1,336 @@
+---
+title: Deploying Next-JS to Azure Static Web Apps using Bicep and GitHub Actions
+date: '2024-05-01'
+tags: ['next-js', 'azure', 'docker', 'static-web-apps', 'github-actions', 'bicep', 'bpmn']
+draft: false
+summary: Overview of pipeline design for deploying Next-JS to Azure Static Web Apps using GitHub Actions
+---
+
+![Next-JS and SWA](/static/images/next_swa.png)
+
+
+In the second part of this series, we will look at deploying Next-JS to 
+Azure Static Web Apps using GitHub Actions and Bicep.
+
+## Source Control Branching Strategy
+
+For the purposes of this article and in general we use the [Feature-Branch workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).
+This consists of a main branch and short-lived feature branches which are reviewed and merged using the Pull-Request mechanism.
+
+## Workflows
+
+This article uses [BPMN](https://www.bpmn.org/) as a diagram standard fo describing top-level workflow logic.
+Firstly we will look at the workflow triggered when code is pushed, or a PR is merged into main.
+
+### Main Branch Workflow
+![Workflow Diagram](/static/images/swa_bpmn_main.svg)
+
+This is a simplified workflow to demonstrate they key stages involved in a typical CI/CD process. 
+
+Applied to our scenario, the steps translate as follows: 
+
+1. Validate Entry Criteria: We use a path filter to look for changes in the **src** or **infra** folders.
+2. Provision Base Infrastructure: In our example this is a single Azure Static Web App, deployed with Bicep. This
+deployment is idempotent.
+23we export as a static site. This step includes linting and type-checking.
+4. Run integration tests: For demo purposes we have some (very) basic Jest integration tests.
+5. Provision Staging Environment: An Azure Static Web App comes with environments built-in, so this and step 8 are handled
+by a combination of step 2 and the following deployment step which sets up an environment.
+6. Deploy to Staging Environment: We deploy the build to a staging environment using the official [GitHub Action](https://github.com/Azure/static-web-apps-deploy?tab=readme-ov-file) for static web apps.
+This uses the [Oryx](https://github.com/microsoft/Oryx) build system which downloads a docker container to wrap CLI logic we would otherise implement manually. 
+Here we want to perform e2e tests in an environment as similar as possible to production without affecting the live site.
+7. Run E2E Tests: We use (very) simple PlayWright tests as Browser-based UI testing. This includes Firefox, Chrome and WebKit.
+8. Provision Production Environment: See step 5.
+9. Deploy to Production: Repeat step 6 but targeting the production environment.
+
+#### YAML
+Here is an example [yaml](https://github.com/horizonmode/blog/blob/main/src/data/workflows/swa-main.yml) based on the main workflow for this blog.
+
+```yml:swa-main.yml
+name: Build and Push to Static Web App (Main)
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate_entry:
+    runs-on: ubuntu-latest
+    outputs:
+      infra: ${{ steps.filter.outputs.infra }}
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            infra:
+               - 'infra/**'
+            src:
+               - 'src/**'
+
+  deploy_base_infra:
+    needs: validate_entry
+    if: needs.validate_entry.outputs.infra == true || needs.validate_entry.outputs.src == true
+    secrets: inherit
+    uses: ./.github/workflows/base_infra_swa.yml
+
+  build_job:
+    needs: deploy_base_infra
+    if: needs.validate_entry.outputs.src == true
+    runs-on: ubuntu-latest
+    name: Build Job
+    env:
+      NEXT_UMAMI_ID: ${{ secrets.NEXT_UMAMI_ID }}
+      NEXT_PUBLIC_GISCUS_REPO: ${{ vars.NEXT_PUBLIC_GISCUS_REPO }}
+      NEXT_PUBLIC_GISCUS_REPOSITORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_REPOSITORY_ID }}
+      NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
+      NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "src/package-lock.json"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: src/out
+
+  run_integration_tests:
+    needs: build_job
+    secrets: inherit
+    uses: ./.github/workflows/jest.yml
+
+  deploy_to_staging:
+    needs: run_integration_tests
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    environment: staging
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: "Login to Azure"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Deployment Token for Static Web App
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            APIKEY=$(az staticwebapp secrets list --name ${{ vars.SWA_APP_NAME }} | jq -r '.properties.apiKey')
+            echo "STATIC_DEPLOYMENT_TOKEN=$APIKEY" >> $GITHUB_ENV
+
+      - name: Deploy to Staging
+        id: deploy_to_staging
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.STATIC_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: "upload"
+          skip_app_build: true
+          deployment_environment: staging
+          app_location: "build"
+    outputs:
+      staging_url: ${{ steps.deploy_to_staging.outputs.static_web_app_url }}
+
+  run_e2e_tests_staging:
+    needs: deploy_to_staging
+    secrets: inherit
+    uses: ./.github/workflows/playwright.yml
+    with:
+      baseUrl: ${{ needs.deploy_to_staging.outputs.staging_url }}
+      useExternal: true
+
+  deploy_to_production:
+    runs-on: ubuntu-latest
+    needs: run_e2e_tests_staging
+    name: Deploy to Production
+    environment: production
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: "Login to Azure"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+      - name: Get Deployment Token for Static Web App
+        uses: azure/CLI@v1
+        with:
+          inlineScript: |
+            APIKEY=$(az staticwebapp secrets list --name ${{ vars.SWA_APP_NAME }} | jq -r '.properties.apiKey')
+            echo "STATIC_DEPLOYMENT_TOKEN=$APIKEY" >> $GITHUB_ENV
+
+      - name: Deploy to Prod
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ env.STATIC_DEPLOYMENT_TOKEN }}
+          repo_token: ${{ secrets.GITHUB_TOKEN }} # Used for Github integrations (i.e. PR comments)
+          action: "upload"
+          skip_app_build: true
+          environment: production
+          app_location: "build"
+
+```
+
+### PR Workflow
+![Workflow Diagram](/static/images/swa_bpmn_pr.svg)
+
+For a PR, we want a simplified workflow that won't affect production but providers testers or developers
+a dedicated environment to review the PR. We also want to validate and assess any changes to Bicep code. One 
+limitation of using a static web app environments is that you can't easily review Bicep changes 
+without affecting the production site. So we settle for a **what-if** deployment and validation 
+as the basis for PR approval.
+
+Applied to our scenario, the steps translate as follows: 
+
+  1. Validate Entry Criteria: We check if infrastructure or source control changes are included in the PR.
+  2. If the PR includes Bicep changes, we validate and run the **what-if** deployment. This gives us a report 
+of changes that will be executed. We write this report to the PR in GitHub.
+  3. If the PR includes source changes, we execute the build: Similarly to the main pipeline we use node to build and export our Next-JS site. This includes linting and
+type checking.
+  4. Run Integration Tests: We run our Jest tests.
+  5. Provision Preview Environment: This functionality is again, built in to Static Web Apps. When we execute the following steps
+the [Oryx](https://github.com/microsoft/Oryx) tool will handle provisioning an environment based on the PR name. 
+  6. We deploy to a Preview Environment with a URL specific to this PR. Similar to steps 4 and 6 in the main pipeline we 
+  leverage the official [GitHub Action](https://github.com/Azure/static-web-apps-deploy?tab=readme-ov-file) for static web apps.
+
+*note: I suggest having physically separate yml files for main and PR workflows to minimize the amount
+of switching and filtering. In my experience this can lead to unreadable workflow files.
+
+#### YAML
+Here is an example [yaml](https://github.com/horizonmode/blog/blob/main/src/data/workflows/swa-pr.yml) based on the PR workflow for this blog.
+
+```yml:swa-pr.yml
+name: Build and Push to Cloudflare Pages (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+jobs:
+  validate_entry:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+               - 'src/**'
+
+  build_job:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && needs.validate_entry.outputs.src == true
+    runs-on: ubuntu-latest
+    name: Build Job
+    needs: validate_entry
+    env:
+      NEXT_UMAMI_ID: ${{ secrets.NEXT_UMAMI_ID }}
+      NEXT_PUBLIC_GISCUS_REPO: ${{ vars.NEXT_PUBLIC_GISCUS_REPO }}
+      NEXT_PUBLIC_GISCUS_REPOSITORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_REPOSITORY_ID }}
+      NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
+      NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      - name: "Only run if code (not infra) has changed"
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+              - 'src/**'
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "src/package-lock.json"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: src/out
+
+  run_integration_tests:
+    needs: build_job
+    secrets: inherit
+    uses: ./.github/workflows/jest.yml
+
+  deploy_to_preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    needs: run_integration_tests
+    name: Deploy to Preview
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          directory: build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## Extensions
+
+This is a simple example. This could be extended to include:
+
+- Static Code Analysis steps.
+- Unit Tests.
+- Smoke Tests after a Production Deployment.
+- Load Tests.
+- Penetration Tests.
+- Infrastructure Validation after a deployment.
+- Manual Control for production deployment.
+- Progressive Rollout or Canary Deployments (Potentially use Traffic Splitting feature for this in Static Web Apps).
+- Expand PlayWright to test logic such as contact form submission.
+- Implement a shorter workflow for simple content updates (Potentially filter steps based on changes to the data folder)

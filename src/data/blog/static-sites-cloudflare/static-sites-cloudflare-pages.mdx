@@ -1,0 +1,285 @@
+---
+title: Deploying Static Sites to Cloudflare Pages using GitHub Actions
+date: '2024-05-23'
+tags: ['next-js', 'cloudflare', 'cloudflare-pages', 'github-actions', 'static-sites', 'jam-stack']
+draft: false
+summary: Overview of pipeline design for deploying static sites to Cloudflare Pages using GitHub Actions
+---
+
+![CloudFlare Pages](/static/images/cloudflare.webp)
+
+This article will cover pipeline design for deploying a static site to CloudFlare Pages via GitHub Actions.
+Similar to GitHub pages, Cloudflare offers a simple managed solution for deploying static sites. It's a very cheap
+option, having a free tier suitable for personal sites. CloudFlare does have it's own build system but
+we prefer integrating with GitHub Actions for visibility and standardisation purposes across projects.
+
+## Source Control Branching Strategy
+
+For the purposes of this article and in general we use the [Feature-Branch workflow](https://www.atlassian.com/git/tutorials/comparing-workflows/feature-branch-workflow).
+This consists of a main branch and short-lived feature branches which are reviewed and merged using the Pull-Request mechanism.
+
+## Workflows
+
+This article uses [BPMN](https://www.bpmn.org/) as a diagram standard fo describing top-level workflow logic.
+Firstly we will look at the workflow triggered when code is pushed, or a PR is merged into main.
+
+### Main Branch Workflow
+![Workflow Diagram](/static/images/cf_bpmn_main.svg)
+
+This is a workflow without baseline Infrastructure as Code, because CloudFlare handle base infrastructure for us.
+
+Applied to our scenario, the steps translate as follows: 
+
+1. Validate Entry Criteria: We use a path filter to look for changes in the **src** folder.
+2. Execute Build: We build and export as a static site. This step includes linting and type-checking.
+3. Run integration tests: For demo purposes we have some (very) basic Jest integration tests.
+4. Deploy to Staging Environment: We deploy the build to a staging environment using the official [GitHub Action](https://github.com/cloudflare/pages-action) for Cloudflare Pages.
+Here we want to perform e2e tests in an environment as similar as possible to production without affecting the live site. We use the concept of branches within 
+cloudflare to target a named staging environment. The step returns the url as an output.
+5. Run E2E Tests: We use (very) simple PlayWright tests as Browser-based UI testing. This includes Firefox, Chrome and WebKit.
+6. Deploy to Production: Repeat step 4 but targeting production. Specifying the main branch within Cloudflare ensures we
+deploy to the production environment.
+
+#### YAML
+Here is an example [yaml](https://github.com/horizonmode/blog/blob/main/.github/workflows/cloudflare-main.yml) based on the main workflow for this blog.
+
+```yml:cloudflare-main.yml
+ name: Build and Push to CloudFlare (Main)
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  validate_entry:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+               - 'src/**'
+
+  build_job:
+    needs: validate_entry
+    if: needs.validate_entry.outputs.src
+    runs-on: ubuntu-latest
+    name: Build Job
+    env:
+      NEXT_UMAMI_ID: ${{ secrets.NEXT_UMAMI_ID }}
+      NEXT_PUBLIC_GISCUS_REPO: ${{ vars.NEXT_PUBLIC_GISCUS_REPO }}
+      NEXT_PUBLIC_GISCUS_REPOSITORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_REPOSITORY_ID }}
+      NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
+      NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "src/package-lock.json"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: src/out
+
+  run_integration_tests:
+    needs: build_job
+    secrets: inherit
+    uses: ./.github/workflows/jest.yml
+
+  deploy_to_staging:
+    needs: run_integration_tests
+    runs-on: ubuntu-latest
+    name: Deploy to Staging
+    environment: staging
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        id: deploy_to_staging
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          directory: build
+          # Optional: Enable this if you want to have GitHub Deployments triggered
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          # Optional: Switch what branch you are publishing to.
+          # By default this will be the branch which triggered this workflow
+          branch: staging
+        
+    outputs:
+      staging_url: ${{ steps.deploy_to_staging.outputs.url }}
+
+  run_e2e_tests_staging:
+    needs: deploy_to_staging
+    secrets: inherit
+    uses: ./.github/workflows/playwright.yml
+    with:
+      baseUrl: ${{ needs.deploy_to_staging.outputs.staging_url }}
+      useExternal: true
+
+  deploy_to_production:
+    runs-on: ubuntu-latest
+    needs: run_e2e_tests_staging
+    name: Deploy to Production
+    environment: production
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          directory: build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: main
+```
+
+### PR Workflow
+![Workflow Diagram](/static/images/cf_bpmn_pr.svg)
+
+For a PR, we want a simplified workflow that won't affect production but providers testers or developers
+a dedicated environment to review the PR.
+
+Applied to our scenario, the steps translate as follows: 
+
+  1. Validate Entry Criteria: We check if source control changes are included in the PR.
+  2. If the PR includes source changes, we execute the build: Similar to the main pipeline we use node to build and export our Next-JS site. This includes linting and
+type checking.
+  3. Run Integration Tests: We run our Jest tests.
+  4. We deploy to a Preview Environment with a URL specific to this PR. Provision Preview Environment: This functionality is again, built in to CloudFlare pages. When we execute
+the [CloudFlare GitHub Action](https://github.com/cloudflare/pages-action) action will handle provisioning an environment based on the PR name. 
+
+*note: I suggest having physically separate yml files for main and PR workflows to minimize the amount
+of switching and filtering. In my experience this can lead to unreadable workflow files.
+
+#### YAML
+Here is an example [yaml](https://github.com/canary-ops/blog/blob/main/.github/workflows/cloudflare-pr.yml) based on the PR workflow for this blog.
+
+```yml:swa-pr.yml
+name: Build and Push to Cloudflare Pages (PR)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    branches:
+      - main
+
+jobs:
+  validate_entry:
+    runs-on: ubuntu-latest
+    outputs:
+      src: ${{ steps.filter.outputs.src }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            src:
+               - 'src/**'
+
+  build_job:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed' && needs.validate_entry.outputs.src == true
+    runs-on: ubuntu-latest
+    name: Build Job
+    needs: validate_entry
+    env:
+      NEXT_UMAMI_ID: ${{ secrets.NEXT_UMAMI_ID }}
+      NEXT_PUBLIC_GISCUS_REPO: ${{ vars.NEXT_PUBLIC_GISCUS_REPO }}
+      NEXT_PUBLIC_GISCUS_REPOSITORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_REPOSITORY_ID }}
+      NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
+      NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          submodules: true
+          lfs: false
+
+      - name: Use Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "20.x"
+          cache: "npm"
+          cache-dependency-path: "src/package-lock.json"
+
+      - name: run npm commands
+        working-directory: src
+        run: |
+          npm i --legacy-peer-deps
+          npm run build
+
+      - name: Upload build folder
+        uses: actions/upload-artifact@v4
+        with:
+          name: build
+          path: src/out
+
+  run_integration_tests:
+    needs: build_job
+    secrets: inherit
+    uses: ./.github/workflows/jest.yml
+
+  deploy_to_preview:
+    if: github.event_name == 'pull_request' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    needs: run_integration_tests
+    name: Deploy to Preview
+    steps:
+      - name: Download build
+        uses: actions/download-artifact@v4
+        with:
+          name: build
+          path: build
+
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
+          directory: build
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+```
+
+## Extensions
+
+This is a simple example. This could be extended to include:
+
+- Cleanup Preview Environments after PRs are merged.
+- Unit Tests.
+- Smoke Tests after a Production Deployment.
+- Manual Control for production deployment.
+- Progressive Rollout or Canary Deployments (Potentially use Traffic Splitting feature for this in Static Web Apps).
+- Expand PlayWright to test logic such as contact form submission.
+- Implement a shorter workflow for simple content updates (Potentially filter steps based on changes to the data folder)

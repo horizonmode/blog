@@ -1,0 +1,23 @@
+name: Provision Base Infrastructure Blob Storage
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Create Storage Account
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ secrets.STORAGE_RG }}
+          template: ./infra/blob/main.bicep
+          parameters: "appname=${{ secrets.APP_NAME }}"
+          failOnStdErr: false

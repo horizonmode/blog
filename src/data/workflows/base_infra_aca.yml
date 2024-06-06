@@ -1,0 +1,23 @@
+name: Provision Base Infrastructure
+
+on:
+  workflow_call:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Checkout GitHub Action"
+        uses: actions/checkout@main
+      - name: "Login via Azure CLI"
+        uses: azure/login@v1
+        with:
+          creds: ${{ secrets.AZURE_CREDENTIALS }}
+      - name: Create Container App
+        uses: azure/arm-deploy@v1
+        with:
+          subscriptionId: ${{ secrets.AZURE_SUBSCRIPTION }}
+          resourceGroupName: ${{ secrets.CONTAINER_APP_RG }}
+          template: ./infra/aca/main.bicep
+          parameters: "storageAccountName=${{ secrets.APP_NAME }} appName=${{ secrets.CONTAINER_APP_NAME }} appId=${{ secrets.CONTAINER_APP_NAME }} containerName=${{ secrets.REGISTRY_LOGIN_SERVER }}/blog:production containerRegistry=${{ secrets.REGISTRY_LOGIN_SERVER }} containerRegistryUsername=${{ secrets.REGISTRY_USERNAME }} containerRegistryPassword=${{ secrets.REGISTRY_PASSWORD }} customDomainName=${{ vars.CUSTOM_DOMAIN }} managedCertName=${{ secrets.MANAGED_CERT_NAME }}"
+          failOnStdErr: false

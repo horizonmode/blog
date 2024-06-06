@@ -1,0 +1,193 @@
+---
+title: Deploying Next.JS on Azure
+date: '2024-03-08'
+tags: ['next-js', 'azure', 'docker', 'static-web-apps', 'kubernetes', 'container-apps', 'github-actions']
+draft: false
+summary: Evaluating options for deploying a Next-JS app on Azure
+---
+
+![Next-JS Logo](/static/images/next.png)
+
+In a multi-part series I will explore options and methods for deploying Next-JS on Azure. 
+Next.JS being closely aligned with Vercel, offers a seamless deployment experience. 
+However I've found that organisations already using Azure who adopt Next.JS for projects or internal apps often prefer
+to deploy within their existing Azure tenant for compliance purposes. 
+
+I've explored four options for deploying a Next.JS app on Azure:
+
+1. Azure Static Web Apps
+2. Azure Blob Storage + CDN
+3. Docker with Azure Kubernetes Service
+4. Docker with Azure Container Apps
+
+I'll outline each approach in this article, and then in the following articles go
+into detail about how to deploy to each with GitHub Actions.
+
+## Azure Static Web Apps
+
+The path of least resistance is Azure's PaaS offering focused broadly on hosting web apps that follow JamStack principles.
+[Static Web Apps](https://learn.microsoft.com/en-us/azure/static-web-apps/overview) wraps a collection of other Azure products 
+to provide a cohesive experience to rival Netlify and Vercel. This includes:
+
+- Static Content Hosting based on Blob Storage
+- CDN
+- Serverless APIs
+- First-class Integration with GitHub Actions or Azure DevOps
+
+When it comes to Next.JS, there are two options with SWAs:
+
+### Static Export
+
+If you don't need [SSR](https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering) or Next.JS API routes (now called [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers) with the App Router framework), then it's possible to export
+the app as simple static content. This allows you to use Azure Functions as a serverless back-end API or 
+call out to an external API from client-side code. Azure Functions included in an SWA don't have access to all features.
+
+_Note_: full list of Next.JS feature restrictions [here](https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features).
+
+### Hybrid Support
+
+As a special workaround for Next.JS, Microsoft have added support for server-dependent features. 
+[Under the hood](https://github.com/Azure/static-web-apps/discussions/921#discussioncomment-3640015), this appears to use an Azure Function to serve dynamic routes.
+Conversely to static export, this option effectively forces you to use Next.JS for data fetching, excludes using linked APIs using Azure Functions, Azure App Service, Azure Container Apps, or Azure API Management.
+
+_Note_: This support is in preview and also comes with a 250MB app bundle limit.
+
+### Summary
+#### Strengths
+
+At first glance, this seems a solid option and seems the way Microsoft wants you to deploy Next.JS apps.
+
+- &uarr; **Speed of Delivery**
+- &uarr; **Future Proof**
+- &uarr; **No CDN config necessary**
+- &uarr; **Managed Environments at no extra cost**
+- &uarr; **Integrated Login**
+- &uarr; **Scalable**
+- &uarr; **Resilient**
+- &uarr; **Cheap at first**
+- &uarr; **DevOps out-the-box**
+- &uarr; **Local testing  possible through CLI**
+- &uarr; **Can be integrated with VNET**
+
+#### Weaknesses
+
+However, this approach totally locks you in to the Azure eco-system and is opinionated all the way down to DevOps workflow.
+
+- &darr; **Vendor Lock-In**
+- &darr; **Not aligned with cloud standards**
+- &darr; **Inaccessible CDN config**
+- &darr; **Security issues with exposing APIs if using client-side data fetching**
+- &darr; **Not easy to integrate with other back-end solutions based on microservices such as DAPR or Service-Mesh**
+- &darr; **Hybrid support restrictive on app size**
+- &darr; **Cold starts from Azure Functions-backed rendering**
+- &darr; **Costs ramp-up quickly once data egress limits reached**
+- &darr; **Opinionated on DevOps**
+
+## Azure Blob Storage + CDN
+
+If you **definitely** won't ever need [SSR](https://nextjs.org/docs/app/building-your-application/rendering/server-components#dynamic-rendering) then a more basic solution is to 
+simply export the content and host the static files in Blob Storage combined with a CDN. Azure offers a range of CDN options
+based around it's Front-Door product range.
+
+### Summary
+#### Strengths
+
+Prior to the introduction of Azure Static Web Apps, this was our default option for pure static hosting. In my experience this
+is a cost-effective and flexible solution. For example, if you need CDN features such as Rewrites which only exists in 
+Verizon Premium, this approach allows you to pick and choose SKUs to meet those requirements. Azure Static Web Apps
+is effectively a 'productised' version of this approach, which reduces the amount of manual setup but is closed to customisation.
+This is a very cost-effective option, offloading data egress largely to a CDN where costs are low.
+
+- &uarr; **Performance**
+- &uarr; **Open to CDN customisation**
+- &uarr; **Scalable**
+- &uarr; **Resilient**
+- &uarr; **Cheap always**
+- &uarr; **Not opinionated on DevOps**
+- &uarr; **Can be integrated with VNET**
+
+#### Weaknesses
+Unlike Azure Static Web Apps, this approach is not opinionated on DevOps approach and does require
+more up-front manual work. It also doesn't include managed environments, so you need to replicate
+the entire infrastructure for each environment.
+
+- &darr; **No out-the-box DevOps pipelines**
+- &darr; **No Managed Environments**
+- &darr; **No Server Side Rendering**
+- &darr; **More manual setup**
+- &darr; **Not easy to test locally**
+- &darr; **Not aligned with cloud standards**
+
+## Docker + Azure Container Apps
+Next-JS [support](https://github.com/vercel/next.js/tree/canary/examples/with-docker) deployment
+using Docker. One option for deploying containerized apps on Azure is through Azure Container Apps. 
+Azure Container Apps is a 'productised' container orchestration platform based on Kubernetes. 
+It offers a developer-friendly solution to deploy a container-based solution without 
+learning the intricacies of Kubernetes or Linux.
+
+### Summary
+#### Strengths
+
+Kubernetes is a open standard for container orchestration championed by the [CNCF](https://www.cncf.io/about/who-we-are/).
+It includes concepts such as desired-state infrastructure, rolling deployments, zero-downtime upgrades, scaling and resiliency. 
+ACA builds on these concepts and offers a simplified model with a low barrier to entry for Developers.
+
+- &uarr; **Uses Kubernetes concepts**
+- &uarr; **Minimal Specialist knowledge required**
+- &uarr; **Highly scalable**
+- &uarr; **Highly resilient**
+- &uarr; **Containers can be tested locally or in a pipeline**
+- &uarr; **Includes integration with DAPR for microservices or other back-end projects**
+- &uarr; **Workloads can be scaled to zero if not used**
+
+#### Weaknesses
+
+- &darr; **Not cloud agnostic**
+- &darr; **No managed Environments**
+- &darr; **Doesn't allow using DevOps tooling such as Flux or ArgoCD**
+- &darr; **More Expensive than SWA or Blob Storage**
+
+## Docker + Azure Kubernetes Service
+
+As an alternative to ACA, Azure Kubernetes Service allows you to provision a Kubernetes Cluster
+on Azure without any additional Azure-specific products or services. 
+
+### Summary
+#### Strengths
+
+The advantage of AKS over ACA is to avoid vendor lock-in. A solution can be 
+deployed on AKS or any other Kubernetes platform with minimal effort. This has implications
+for future-proofing, but also skills development and architecture.
+
+- &uarr; **Cloud agnostic**
+- &uarr; **Uses Cloud Standards**
+- &uarr; **Allows using DevOps tooling such as Flux or ArgoCD**
+- &uarr; **Highly scalable**
+- &uarr; **Highly resilient**
+- &uarr; **Containers can be tested locally or in a pipeline**
+- &uarr; **Can be integrated with microservices or other scale back-end projects**
+
+#### Weaknesses
+
+The main barrier for adopting kubernetes is the level of expertise required. If a front-end team 
+is using Next-JS they may not have the time or inclination to learn linux or kubernetes to the level necessary to
+provide ongoing support.
+
+- &darr; **Specialist knowledge required**
+- &darr; **Complex approach if only hosting a single Next-JS instance**
+- &darr; **Most expensive option**
+- &darr; **No managed environments**
+
+## Summary
+
+If you have a simple site with no need for server-side rendering, we recommend Azure Static Web Apps or 
+Blob Storage. The decision between those options depends on the skills and size of team in question, and
+the need to customise a CDN. If no extra routing logic is necessary and team resources
+are at a minumum, SWA makes sense. However Blob Storage can be cheaper and more flexible if the extra overhead
+is accepted.  
+
+If a project makes use of SSR or is part of a larger full-stack solution, we would recommend 
+using either Azure Container Apps or Azure Kubernetes Service. Again, the decision between these
+options will depend on the availability of specialist skills. If Kubernetes skills are available, 
+AKS is the cleanest approach that aligns with Cloud Standards. However ACA makes the benefits
+of Kubernetes accessible where these skills are not available.
