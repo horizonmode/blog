@@ -20,7 +20,7 @@ jobs:
 
   build_job:
     needs: validate_entry
-    if: needs.validate_entry.outputs.src == true
+    if: needs.validate_entry.outputs.src == 'true'
     runs-on: ubuntu-latest
     name: Build Job
     env:
