@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test'
 test('should navigate to the blog page', async ({ page }) => {
   await page.goto('/')
   // Find an element with the text 'Blog' and click on it
-  await page.click('text=Blog')
+  await page.getByRole('button').filter({ hasText: 'Blog' }).click()
   // The new URL should be "/blog" (baseURL is used there)
   await expect(page).toHaveURL('/blog/')
   // The new page should contain an article
@@ -13,7 +13,7 @@ test('should navigate to the blog page', async ({ page }) => {
 test('should navigate to the tags page', async ({ page }) => {
   await page.goto('/')
   // Find an element with the text 'Tags' and click on it
-  await page.click('text=Tags')
+  await page.getByRole('button').filter({ hasText: 'Tags' }).click()
   // The new URL should be "/tags" (baseURL is used there)
   await expect(page).toHaveURL('/tags/')
   // The new page should contain the Tag Heading
@@ -36,6 +36,7 @@ const getFilesRecursively = (directory, files) => {
 
   return files
 }
+
 test('should show the correct number of blog articles', async ({ page }) => {
   const dir = './data/blog'
   const files = getFilesRecursively(dir, [])
