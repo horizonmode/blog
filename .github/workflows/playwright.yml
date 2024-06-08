@@ -21,7 +21,7 @@ jobs:
     env:
       PLAYWRIGHT_TEST_BASE_URL: ${{ inputs.baseUrl }}
       PLAYWRIGHT_TEST_USE_EXTERNAL: ${{ inputs.useExternal }}
-      ci: true
+      CI: true
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
