@@ -16,7 +16,7 @@ a permanent centralised logging stack is not viable or necessary.
 
 ## Overview
 
-The FluentBit exporter creates logs in the format ==/log/kube/Y/m/d/H/M/S/UUID.gz==. These
+The FluentBit exporter creates logs in the format **/log/kube/Y/m/d/H/M/S/UUID.gz**. These
 get exported frequently depending on the configuration of the Tail and S3 FluentBit Plugins. 
 Files are unique and never over-written or appended in S3. In our configuration we 
 use GZIP compression. Whilst it is possible to download the entire container and use
@@ -27,3 +27,44 @@ like a filesystem.
 
 [CloudGrep](https://github.com/cado-security/cloudgrep) is a utility written in Python
 that allows you to query across files in S3 compatible Object Storage.
+
+### Installation 
+
+#### Prerequisites
+
+- Python 3.6+
+- Pip
+
+#### Install pip and create virtual environment:
+
+```bash
+python3.12 -m pip install --upgrade pip
+python3 -m venv ./  
+source ./bin/activate  
+```
+#### Install packages:
+```bash
+python3.12 -m pip install --upgrade pip
+python3 -m venv ./  
+source ./bin/activate  
+pip3 install -r requirements.txt
+```
+
+#### Configuration
+```bash
+export AWS_ENDPOINT_URL=https://**region**.linodeobjects.com
+export AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY
+export AWS_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
+```
+
+#### Usage
+```bash
+python3 cloudgrep.py -b **bucket-name** -q **query**             
+```
+#### Example outputs
+
+```bash
+Bucket is in region: default : Search from the same region to avoid egress charges.
+Searching 16494 files in **bucket** for **query**...
+log/kube/2024/07/11/05/03/24/jL3IhQ98.gz: {"date":"2024-07-11T05:07:42.475817Z","log":"2024-07-11T05:07:42.475723685Z", ...}
+```
