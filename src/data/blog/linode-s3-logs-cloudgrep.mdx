@@ -1,0 +1,29 @@
+---
+title: Querying Logs stored in Linode S3 using Cloud-Grep
+date: '2024-06-25'
+tags: ['linode', 'devops', 'kubernetes', 'logging', 'cloud-grep', 's3']
+draft: false
+summary: How to query logs stored in chunks on Linode S3 Object Storage
+---
+
+![FluentBit](/static/images/linode.png)
+
+Following up the previous article on exporting logs from Kubernetes to Linode S3 
+storage using FluentBit, now we focus on how to query those logs. This strategy
+might fit situations where you have limited infrastructure resources, or 
+very occassional querying requirements so running
+a permanent centralised logging stack is not viable or necessary.
+
+## Overview
+
+The FluentBit exporter creates logs in the format ==/log/kube/Y/m/d/H/M/S/UUID.gz==. These
+get exported frequently depending on the configuration of the Tail and S3 FluentBit Plugins. 
+Files are unique and never over-written or appended in S3. In our configuration we 
+use GZIP compression. Whilst it is possible to download the entire container and use
+grep locally, ideally we need a tool that can connect to S3 and query the container
+like a filesystem.
+
+## CloudGrep
+
+[CloudGrep](https://github.com/cado-security/cloudgrep) is a utility written in Python
+that allows you to query across files in S3 compatible Object Storage.
