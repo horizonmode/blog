@@ -3,7 +3,8 @@ const siteMetadata = {
   title: 'Sebastian Smith Blog',
   author: 'Sebastian Smith',
   headerTitle: 'Sebastian Smith Blog',
-  description: 'A blog about Cloud Engineering, DevOps and Hosting on Linode and Azure.',
+  description:
+    'A blog about Next-JS, Cloud Engineering, DevOps, Hosting on Cloudflare, Linode and Azure.',
   language: 'en-us',
   theme: 'system',
   siteUrl: 'https://sebsmith.net',
