@@ -1,0 +1,67 @@
+---
+title: Blitz Gym - A Fitness App for Circuits and HIIT
+date: '2023-08-01'
+tags: ['azure', 'signalR', 'flutter', 'storage', 'static-web-apps', 'cosmos-db', 'blitz-gym']
+draft: false
+summary: Design and Architecture of a Fitness App using Flutter, Azure Static Web Apps, SignalR, and Cosmos DB
+---
+
+[Blitz](https://www.blitzhiit.co.uk/) was designed as new style of semi-automated gym, 
+focusing on circuits and HIIT. The gym space
+was organised into twelve stations with a screen above each that run 24/7. 
+
+On each screen would be a video of the exercise to perform, a timer, and a
+countdown to the next station. The idea was to have a digital-first gym where
+the screens would guide the user through the workout.
+
+## Requirements
+
+1. The system needed to be configurable by gym employees, so they could change the
+workout plan, the exercises, the timings, and the order of the stations.
+2. Exercise videos can be uploaded by Gym employees and associated with the correct exercise.
+3. Gym screens should be able to connect to the system and display the workout for each station.
+4. Timers on each screen should be closely synchronised.
+4. The system should be able to handle multiple gyms, each with their own workout plan.
+
+## Constraints
+
+1. Gym internet connection quality is inconsistent, so the system should be continue to work offline.
+2. Gym screens are cheap and have limited processing power, so the system should be lightweight.
+3. TV O/S has been recommended as Android, but this may change in the future.
+4. Hosting costs should be kept to a minimum.
+5. Maintenance should be simple and not require a dedicated IT team.
+
+## Design
+
+![Architecture](/static/images/blitz.svg)
+
+### Components
+
+1. **Android App**: This is the app that runs on the gym screens. It connects to the Azure SignalR service to receive updates on the workout plan and timings.
+    - Built using Flutter
+    - Runs on Android TV
+2. **Web App**: This is the app that allows employees to manage content and start/stop programmes. This is deployed to Azure Static Web Apps.
+    - Built using Next-JS
+    - Hosted on Azure Static Web Apps
+3. **API**: An API layer for the web app to upload videos and manage workouts. This API must also trigger the gym screens to update and start/stop.
+    - Built and hosted using Azure Functions
+    - Uses SignalR to trigger gym screens
+5. **Database**: This is used to store the workout plans and exercise videos. It is accessed by the web app and API.
+    - Built using Azure Cosmos DB
+6. **Video Storage**: This is used to store the exercise videos. It is accessed by the Web app for preview and Android App to display content in the gym.
+    - Implemented with Azure Blob Storage
+
+## Final Product
+
+The final product was a success. The gym screens were able to connect to the system and display the workout plan. The timers were synchronised across all screens. Gym employees were able to upload new exercise videos and change the workout plan.
+
+![Gym View 1](/static/images/blitz_1.jpeg)
+![Gym View 2](/static/images/blitz_2.jpeg)
+
+## Problems Encountered
+
+1. Video downloads - The Flutter app had issues streaming videos from Azure Blob Storage. This was resolved by implementing a cache within the Flutter app.
+2. Timers stopping when the internet connection was lost - This was resolved by designating one screen as the master screen. If the master screen lost connection, another screen would take over as master.
+The master screen would then broadcast the workout plan and timings to the other screens using UDP broadcast.
+3. Video sizes - videos taken by employees were large, so videos had to be compressed and re-encoded before being uploaded to Azure Blob Storage.
+This was done using FFmpeg in a Web Worker within the Next-JS app.
