@@ -1,5 +1,5 @@
 ---
-title: International Rugby Experience - OMM
+title: International Rugby Experience x OMM
 date: '2022-02-01'
 tags: ['azure', 'react', 'microservices', 'kubernetes', 'unity', 'mqtt']
 draft: false
@@ -47,7 +47,7 @@ through the museum, collect their scores across different activities and provide
 
 **Container Diagram**
 
-![Container Diagram](/static/images/ire_container.png)
+![Container Diagram](/static/images/ire_container.jpg)
 
 ### Components
 
@@ -58,7 +58,7 @@ through the museum, collect their scores across different activities and provide
 2. **Unity Apps**: Interactive games and visualisations that visitors can play.
     - Built using Unity
     - Installed as Desktop Apps
-3. **Brightsign Players**: Media players that display videos and animations.
+3. **Micro-controllers**: Media players that display videos and animations.
     - Third-party devices
 4. **MQTT Broker**: Used to communicate between the different components.
     - Hosted on-prem using Mosquitto
@@ -69,3 +69,18 @@ through the museum, collect their scores across different activities and provide
     - Built using Directus
 8. **Logging**: Used to log visitor interactions and errors.
     - Built using SeQ
+
+## Implementation Considerations
+
+1. **Offline Mode**: The system should be able to continue to work offline if the internet connection is lost. This is 
+achieved by storing visitor data locally and syncing when the connection is restored.
+2. **Messaging**: The system uses MQTT to communicate between the different components. This allows the system to be
+loosely coupled and for components to be added or removed without affecting the rest of the system.
+3. **Scalability**: The system should be able to handle a large number of visitors at peak times. This is achieved by
+using a microservices architecture and scaling the different components independently.
+4. **Security**: The system should be secure and protect visitor data. This is achieved by encrypting data in transit and at rest,
+and by following best practices for securing APIs and databases.
+5. **Monitoring**: The system should be monitored to ensure it is running smoothly and to detect and fix issues quickly. This is
+achieved by using logging and monitoring tools to track visitor interactions and errors.
+6. **Content Management**: The system should allow museum staff to edit copy and content on each exhibit. This is achieved by
+using a CMS that allows staff to edit content in a user-friendly way.
