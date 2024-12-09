@@ -1,0 +1,107 @@
+---
+title: Scale to Zero with Azure Container Apps
+date: '2024-10-01'
+tags: ['azure', 'docker', 'container-apps']
+draft: false
+summary: Scale to Zero in Azure Container Apps
+---
+
+![Azure Container Apps](/static/images/container-apps.png)
+
+I've found this feature to be useful when running personal projects 
+or small business apps in a cost-effective way in Azure, whilst maintaining a high level of availability.
+There are no usage costs applied when scale is set to zero.
+
+## What is Scale to Zero?
+
+Scale to Zero is a [feature](https://learn.microsoft.com/en-us/azure/container-apps/scale-app?pivots=azure-resource-manager]) of Azure Container Apps that allows you to stop
+paying for resources when your app is not in use. This is particularly useful
+for personal projects or small business apps that have low traffic or are only
+used at certain times of the day.
+
+When you enable Scale to Zero, Azure Container Apps will automatically stop
+your app when it is not in use. This means that you will not be charged for
+the resources that your app is using when it is not being accessed.
+
+When a request is made to your app, Azure Container Apps will automatically
+start your app and route the request to it. This means that your app will
+be available to users when they need it, without you having to pay for
+resources when it is not in use.
+
+## How to enable Scale to Zero
+
+To enable Scale to Zero for your Azure Container App, you can the revisions
+feature of Azure Container Apps. A revision has scaling settings that control 
+how many instances of the app are running and triggers that control up or down-scaling events.
+
+Here is an example of how you can configure a revision to enable Scale to Zero:
+
+```json
+{
+  ...
+  "resources": {
+    ...
+    "properties": {
+      ...
+      "template": {
+        ...
+        "scale": {
+          "minReplicas": 0,
+          "maxReplicas": 2,
+          "rules": [{
+            "name": "http-rule",
+            "http": {
+              "metadata": {
+                "concurrentRequests": "100"
+              }
+            }
+          }]
+        }
+      }
+    }
+  }
+}
+```
+### What scaling options are available?
+
+Azure Container Apps supports several scaling options, including:
+
+1. HTTP requests: Scale based on the number of HTTP requests your app receives.
+2. KEDA: Scale based on events such as messages from a queue, or custom metrics.
+    -  CPU or Memory Usage
+    -  Azure Monitor Metrics
+    -  Azure Service Bus Queues
+    -  Azure Storage Queues
+    -  Azure Event Hubs
+
+### KEDA
+
+[KEDA](https://keda.sh/docs/1.5/concepts/scaling-deployments/) is a Cloud Native Computing Foundation (CNCF) project that provides event-driven autoscaling for Kubernetes workloads.
+It is possible to use this on any Kubernetes cluster. In this case, KEDA scales a workload using the 
+replicas field in the deployment manifest. 
+
+#### HTTP Scalers
+Although not initally supported, KEDA offer two options for HTTP-based scaling:
+
+1. **KEDA HTTP Scaler Extension**: This is a custom scaler that can be used to scale based on HTTP requests.
+2. **KEDA Prometheus Scaler**: This is a scaler that can monitor prometheus metrics to monitor incoming requests. 
+
+#### Event Scalers
+
+KEDA offers a range of event scalers that can be used to scale based on events such as messages from a queue. 
+Azure Container Apps allows you to combine these style of scalers with Azure resources. 
+For example, you could scale based on the number of messages in an Azure Service Bus Queue.
+
+```yaml
+triggers:
+- type: azure-servicebus
+  metadata:
+    queueName: my-queue
+    namespace: service-bus-namespace
+    messageCount: "5"
+```
+
+### Drawbacks
+
+1. **Cold Start**: When your app is scaled to zero, there will be a delay when a request is made to your app as it starts up. I've observed cold-starts of around 5-10 seconds on the first request.
+2. **Other Costs**: Although you are not charged for resources when your app is scaled to zero, you will still be charged for storage and other resources that your app uses.
