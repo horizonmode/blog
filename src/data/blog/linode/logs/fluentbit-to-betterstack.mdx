@@ -69,6 +69,43 @@ We define an input block to leverage this plugin and point to log files generate
         Mem_Buf_Limit 5MB
         Skip_Long_Lines On
 ```
+
+### Filter Plugins
+The [kubernetes](https://docs.fluentbit.io/manual/pipeline/inputs/kubernetes) plugin allows you to enrich logs with Kubernetes metadata.
+This is useful for identifying which pod, namespace, or container the logs originated from.
+```yml:fluentbit.yaml
+    [INPUT]
+        Name kubernetes
+        Tag kube.*
+        Merge_Log On
+        Kube_Tag_Prefix kube.var.log.containers.
+        Kube_URL https://kubernetes.default.svc:443
+        Kube_CA_File /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File /var/run/secrets/kubernetes.io/serviceaccount/token
+```
+Filtering for Errors: 
+
+To filter logs for errors and exclude static file requests, we can use the [grep](https://docs.fluentbit.io/manual/pipeline/filters/grep) plugin. This allows us to only forward logs that contain the word "error".
+
+```yml:fluentbit.yaml
+    [FILTER]
+        Name    grep
+        Match   kube.*
+        Regex   log (?i)(error|failed|exception)
+
+    [FILTER]
+        Name    grep
+        Match   container.*
+        Exclude log (?i)\.(png|jpg|jpeg|gif|svg|ico|css|js|woff|woff2|ttf|eot|otf|php)\b
+
+    [FILTER]
+        Name    grep
+        Match   container.*
+        Exclude code ^(2|3)\d\d$
+
+```
+
+
 ### HTTP Output Plugin
 
 The [http](https://docs.fluentbit.io/manual/pipeline/outputs/http) plugin allows you to forward 
@@ -87,6 +124,7 @@ logs to an HTTP endpoint. We will use this to forward logs to BetterStack.
         format  msgpack
         retry_limit 5
 ```
+
 ### Deployment
 
 Kubernetes logs for an application are stored on it's underlying node. This means we need to 
@@ -156,4 +194,5 @@ Betterstack supports FluentBit as a data source, allowing you to forward logs di
 Their [documentation](https://betterstack.com/community/guides/logging/fluent-bit-explained/) provides a guide on how to set up FluentBit as a source.
 
 Once configured, you can use the LiveTail feature to view logs in real-time, set up alerts based on log patterns, and create dashboards to visualize log data.
+In the image below you can see the LiveTail with a log highlighted, inclulding the Kubernetes metadata we enriched it with.
 ![BetterStack Portal](/static/images/betterstack.png)
