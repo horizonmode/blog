@@ -9,13 +9,12 @@ summary: Overview of how to export logs from Kubernetes to BetterStack using Flu
 ![FluentBit](/static/images/logging_better.jpg)
 
 Following on from my previous post on [Exporting Kubernetes Logs to Linode S3 using FluentBit](https://www.linode.com/blog/exporting-kubernetes-logs-to-linode-s3-using-fluentbit/),
-we found that the logs were being exported to S3 but we had no way to query them or 
-set up alerts based on the logs.
-We wanted to minimise the cluster overhead of managing a full logging stack such as Grafana Loki,
-so we decided to use [BetterStack](https://betterstack.com/) as a logging solution partially be
-cause it integrates well with FluentBit and provides a free tier. We will 
-continue to use Linode S3 for long-term storage of logs, but we will now forward error logs to BetterStack for real-time monitoring and alerting.
+we found that the logs were being exported to S3, but we had no way to query them or 
+set up alerts.
 
+To keep costs down we wanted to minimise the cluster overhead of managing a full logging stack such as Grafana Loki.
+As we already had [BetterStack](https://betterstack.com/) set up for uptime alerting, we explored the possibility of extending this to logs and discovered it has native support for FluentBit. 
+The decision was made to continue to use Linode S3 for long-term storage of logs, but we will now forward error logs to BetterStack for real-time monitoring and alerting.
 
 ## Overview
 
@@ -41,7 +40,7 @@ These logs are rotated based on two environment variables:
 These settings let you configure the maximum size for each log file and the maximum number of files allowed for each container respectively.
 Crucially, using the command **kubectl logs** will only ever return the latest file. The others would need to be accessed directly.
 
-Our requirement is to extend this functionality to make these logs persist for 30 days regardless of size. 
+Our requirement is to extend this functionality to make these logs available in BetterStack for error reporting, and for 30 days in S3 for archive purposes.
 
 ## FluentBit
 
@@ -85,7 +84,7 @@ This is useful for identifying which pod, namespace, or container the logs origi
 ```
 Filtering for Errors: 
 
-To filter logs for errors and exclude static file requests, we can use the [grep](https://docs.fluentbit.io/manual/pipeline/filters/grep) plugin. This allows us to only forward logs that contain the word "error".
+To filter logs for errors and exclude static file requests, we can use the [grep](https://docs.fluentbit.io/manual/pipeline/filters/grep) plugin.
 
 ```yml:fluentbit.yaml
     [FILTER]
@@ -109,7 +108,7 @@ To filter logs for errors and exclude static file requests, we can use the [grep
 ### HTTP Output Plugin
 
 The [http](https://docs.fluentbit.io/manual/pipeline/outputs/http) plugin allows you to forward 
-logs to an HTTP endpoint. We will use this to forward logs to BetterStack.
+logs to an HTTP endpoint. We will use this to forward logs to the BetterStack ingestion API.
 
 ```yml:fluentbit.yaml
      [OUTPUT]
