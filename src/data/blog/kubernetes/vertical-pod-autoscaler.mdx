@@ -6,8 +6,6 @@ draft: false
 summary: The role of the Vertical Pod Autoscaler for single-replica deployments.
 ---
 
-![FluentBit](/static/images/vpa.webp)
-
 We manage a Kubernetes cluster with a mix of deployments. These include static sites, web applications and utilities.
 Some of these deployments need to be single-replica, as they don't support horizontal scaling.
 This means we can't use the Horizontal Pod Autoscaler (HPA) to manage resource requests and limits.
@@ -59,3 +57,67 @@ Our approach was to move through the VPA modes as follows:
 2. Use the recommendations to set initial resource requests and limits for the deployments.
 3. Move to **Initial** mode to apply the recommended resource requests and limits when pods are created.
 4. Finally, switch to **InPlaceOrRecreate** mode to allow the VPA to update resources as needed.
+
+## Installing the VPA
+Installing the VPA as a custom resource definition (CRD) involves
+cloning the [repository](https://github.com/kubernetes/autoscaler/) and running the installation script:
+
+```bash
+git clone https://github.com/kubernetes/autoscaler/
+cd vertical-pod-autoscaler/
+./hack/vpa-up.sh
+```
+
+## Initial VPA Configuration
+An example VPA configuration is shown below. This example sets the VPA to **Off** mode initially.
+It also sets minimum and maximum resource limits to prevent the VPA from recommending values that are too low or too high.
+```yaml
+apiVersion: autoscaling.k8s.io/v1
+kind: VerticalPodAutoscaler
+metadata:
+  name: my-app-vpa      
+  namespace: default
+spec:
+  targetRef:
+    apiVersion: "apps/v1"
+    kind:       Deployment
+    name:       my-app
+  updatePolicy:
+    updateMode: "Off"  # Start in Off mode to gather data
+  resourcePolicy:
+    containerPolicies:
+      - containerName: "*"
+        minAllowed:
+          cpu: "100m"
+          memory: "128Mi"
+        maxAllowed:
+          cpu: "1"
+          memory: "1Gi"
+``` 
+
+## Monitoring and Adjusting
+After deploying the VPA, we monitored the recommendations provided by the Recommender component.
+
+To view the recommendations, we used the following command:
+```bashkubectl get vpa my-app-vpa -o yaml
+```   
+
+This output includes the recommended CPU and memory requests and limits based on the observed usage.
+We used these recommendations to set the initial resource requests and limits for our deployments.
+Once we were satisfied with the initial settings, we switched the VPA to **Initial** mode:
+```yaml
+  updatePolicy:
+    updateMode: "Initial"
+```
+This ensured that new pods would be created with the recommended resource settings.
+Finally, we moved to **InPlaceOrRecreate** mode to allow the VPA to adjust resources as needed:
+```yaml
+  updatePolicy:
+    updateMode: "InPlaceOrRecreate"
+```
+This allowed the VPA to update running pods in place when possible, or recreate them if necessary.
+
+## Conclusion
+The Vertical Pod Autoscaler is a powerful tool for managing resource requests and limits in Kubernetes, especially for single-replica deployments.
+By leveraging the VPA, we can ensure that our applications have the resources they need to run efficiently, while minimizing over-provisioning.
+The introduction of InPlace Pod Vertical Scaling in Kubernetes 1.27 has further enhanced the capabilities of the VPA, allowing for more seamless resource management.
