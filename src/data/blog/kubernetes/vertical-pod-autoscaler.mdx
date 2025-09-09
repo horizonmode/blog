@@ -48,7 +48,7 @@ In our case, we have several deployments that need to run as single replicas. Th
 - Web applications that do not support horizontal scaling
 - Utility services that perform background tasks
 These deployments often have varying resource requirements based on the workload, making it challenging to set appropriate resource requests and limits manually.
-Using the VPA allows us to automatically adjust these values based on actual usage, ensuring that our applications have the resources they need to run efficiently without over-provisioning. 
+Using the VPA allows us to automatically recommend these values based on actual usage, ensuring that our applications have the resources they need to run efficiently without over-provisioning. 
 
 ## VPA Approach
 
@@ -56,7 +56,6 @@ Our approach was to move through the VPA modes as follows:
 1. Start with the VPA in **Off** mode to gather resource usage data and get recommendations.
 2. Use the recommendations to set initial resource requests and limits for the deployments.
 3. Move to **Initial** mode to apply the recommended resource requests and limits when pods are created.
-4. Finally, switch to **InPlaceOrRecreate** mode to allow the VPA to update resources as needed.
 
 ## Installing the VPA
 Installing the VPA as a custom resource definition (CRD) involves
@@ -109,15 +108,3 @@ Once we were satisfied with the initial settings, we switched the VPA to **Initi
   updatePolicy:
     updateMode: "Initial"
 ```
-This ensured that new pods would be created with the recommended resource settings.
-Finally, we moved to **InPlaceOrRecreate** mode to allow the VPA to adjust resources as needed:
-```yaml
-  updatePolicy:
-    updateMode: "InPlaceOrRecreate"
-```
-This allowed the VPA to update running pods in place when possible, or recreate them if necessary.
-
-## Conclusion
-The Vertical Pod Autoscaler is a powerful tool for managing resource requests and limits in Kubernetes, especially for single-replica deployments.
-By leveraging the VPA, we can ensure that our applications have the resources they need to run efficiently, while minimizing over-provisioning.
-The introduction of InPlace Pod Vertical Scaling in Kubernetes 1.27 has further enhanced the capabilities of the VPA, allowing for more seamless resource management.
