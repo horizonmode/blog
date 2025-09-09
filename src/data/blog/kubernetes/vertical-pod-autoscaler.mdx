@@ -1,5 +1,5 @@
 ---
-title: Using the Vertical Pod Autoscaler in Kubernetes for Single Replica Deployments
+title: Using the Vertical Pod Autoscaler (VPA) in Kubernetes
 date: '2025-09-09'
 tags: ['linode', 'devops', 'kubernetes', 'autoscale']
 draft: false
@@ -43,8 +43,8 @@ However, there are still some limitations to be aware of:
 ### VPA Modes
 The VPA can operate in three different modes:
 - **Off**: The VPA only provides recommendations but does not update any pods.
-- **InPlaceOrRecreate**: The VPA attempts to update the resource requests and limits of running pods in place. If in-place updates are not supported by the workload, it will recreate the pod with the new settings.
 = **Initial**: The VPA sets the resource requests and limits for pods when they are first created, but does not update them afterwards. This mode is useful for workloads that do not support in-place updates but still benefit from initial resource tuning.
+- **InPlaceOrRecreate**: The VPA attempts to update the resource requests and limits of running pods in place. If in-place updates are not supported by the workload, it will recreate the pod with the new settings.
 
 ## Why use VPA?
 In our case, we have several deployments that need to run as single replicas. These include:
@@ -112,3 +112,16 @@ Once we were satisfied with the initial settings, we switched the VPA to **Initi
   updatePolicy:
     updateMode: "Initial"
 ```
+
+## What's Next?
+We are currently evaluating the performance of our deployments with the VPA in **Initial** mode.
+If we find that our workloads support in-place updates and the VPA is providing accurate recommendations,
+we may consider moving to **InPlaceOrRecreate** mode in the future.
+
+However, the minReplicas setting on the VPA currently prevents us from using this mode, as it requires at least 2 replicas 
+to enable recreation of pods. Our options are to either:
+- Reduce the minReplicas to 1 and accept the risk of downtime during pod recreation (if in-place updates are not possible).
+- Keep using **Initial** mode and manually adjust resources as needed.
+
+Ultimately, re-creating a pod would only be necessary if the node does not have sufficient resources to accommodate the new requests and limits.
+In this case, the pod would presumably be a candidate for throttling or eviction anyway.
