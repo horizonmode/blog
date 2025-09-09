@@ -1,0 +1,61 @@
+---
+title: Using the Vertical Pod Autoscaler in Kubernetes for Single Replica Deployments
+date: '2025-09-09'
+tags: ['linode', 'devops', 'kubernetes', 'autoscale']
+draft: false
+summary: The role of the Vertical Pod Autoscaler for single-replica deployments.
+---
+
+![FluentBit](/static/images/vpa.webp)
+
+We manage a Kubernetes cluster with a mix of deployments. These include static sites, web applications and utilities.
+Some of these deployments need to be single-replica, as they don't support horizontal scaling.
+This means we can't use the Horizontal Pod Autoscaler (HPA) to manage resource requests and limits.
+We've recently been exploring the use of the Vertical Pod Autoscaler (VPA) 
+as an alternative, which (almost!) leverages the new InPlace Pod Vertical Scaling feature now in Kubernetes 1.27+.
+
+## VPA Overview
+
+The Vertical Pod Autoscaler (VPA) automatically adjusts the CPU and memory requests and limits for your pods based on their actual usage.
+This is particularly useful for workloads that cannot be horizontally scaled, such as single-replica deployments.
+The VPA consists of three main components:
+
+1. **Recommender**: Monitors resource usage and provides recommendations for CPU and memory requests and limits.
+2. **Updater**: Updates the resource requests and limits of pods based on the recommendations from the Recommender.
+3. **Admission Controller**: Intercepts pod creation and updates to apply the recommended resource requests and limits.
+
+### Requests and limits
+
+In Kubernetes, resource requests and limits are used to manage the resources allocated to containers within pods.
+- **Requests**: The minimum amount of CPU and memory that a container is guaranteed to have. The Kubernetes scheduler uses these values to determine which node to place the pod on.
+- **Limits**: The maximum amount of CPU and memory that a container can use. If a container tries to exceed its limit, it may be throttled or terminated.
+
+### InPlace Pod Vertical Scaling
+With the introduction of InPlace Pod Vertical Scaling in Kubernetes 1.27, the VPA can now update the resource requests and limits of running pods without needing to restart them.
+This is a significant improvement, as it reduces downtime and allows for more seamless resource management.
+However, there are still some limitations to be aware of:
+- Not all workloads support in-place updates. Some applications may require a restart to apply new resource settings.
+- The VPA may not be able to update resources if the node does not have sufficient available resources.
+- InPlace Pod Vertical Scaling is still an alpha feature and may not be suitable for production environments.
+
+### VPA Modes
+The VPA can operate in three different modes:
+- **Off**: The VPA only provides recommendations but does not update any pods.
+- **InPlaceOrRecreate**: The VPA attempts to update the resource requests and limits of running pods in place. If in-place updates are not supported by the workload, it will recreate the pod with the new settings.
+= **Initial**: The VPA sets the resource requests and limits for pods when they are first created, but does not update them afterwards. This mode is useful for workloads that do not support in-place updates but still benefit from initial resource tuning.
+
+## Why use VPA?
+In our case, we have several deployments that need to run as single replicas. These include:
+- Static sites served by Nginx
+- Web applications that do not support horizontal scaling
+- Utility services that perform background tasks
+These deployments often have varying resource requirements based on the workload, making it challenging to set appropriate resource requests and limits manually.
+Using the VPA allows us to automatically adjust these values based on actual usage, ensuring that our applications have the resources they need to run efficiently without over-provisioning. 
+
+## VPA Approach
+
+Our approach was to move through the VPA modes as follows:
+1. Start with the VPA in **Off** mode to gather resource usage data and get recommendations.
+2. Use the recommendations to set initial resource requests and limits for the deployments.
+3. Move to **Initial** mode to apply the recommended resource requests and limits when pods are created.
+4. Finally, switch to **InPlaceOrRecreate** mode to allow the VPA to update resources as needed.
