@@ -28,6 +28,10 @@ In Kubernetes, resource requests and limits are used to manage the resources all
 - **Requests**: The minimum amount of CPU and memory that a container is guaranteed to have. The Kubernetes scheduler uses these values to determine which node to place the pod on.
 - **Limits**: The maximum amount of CPU and memory that a container can use. If a container tries to exceed its limit, it may be throttled or terminated.
 
+Problem: If resource requests and limits are not set appropriately, it can lead to inefficient resource usage, application instability, and poor performance.
+It's difficult to predict the exact resource requirements for applications, especially when workloads vary over time.
+We were hoping the VPA could help us manage this automatically.
+
 ### InPlace Pod Vertical Scaling
 With the introduction of InPlace Pod Vertical Scaling in Kubernetes 1.27, the VPA can now update the resource requests and limits of running pods without needing to restart them.
 This is a significant improvement, as it reduces downtime and allows for more seamless resource management.
