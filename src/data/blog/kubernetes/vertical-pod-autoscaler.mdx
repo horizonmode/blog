@@ -7,7 +7,7 @@ summary: The role of the Vertical Pod Autoscaler.
 ---
 
 We manage a Kubernetes cluster with a mix of deployments. These include static sites, web applications and utilities.
-Some of these deployments need to be single-replica, as they don't support horizontal scaling.
+Some of these deployments eont support horizontal scaling.
 This means we can't use the Horizontal Pod Autoscaler (HPA) to manage resource requests and limits.
 We've recently been exploring the use of the Vertical Pod Autoscaler (VPA) 
 as an alternative, which (almost!) leverages the new InPlace Pod Vertical Scaling feature now in Kubernetes 1.27+.
@@ -15,7 +15,7 @@ as an alternative, which (almost!) leverages the new InPlace Pod Vertical Scalin
 ## VPA Overview
 
 The Vertical Pod Autoscaler (VPA) automatically adjusts the CPU and memory requests and limits for your pods based on their actual usage.
-This is particularly useful for workloads that cannot be horizontally scaled, such as single-replica deployments.
+
 The VPA consists of three main components:
 
 1. **Recommender**: Monitors resource usage and provides recommendations for CPU and memory requests and limits.
@@ -118,10 +118,10 @@ We are currently evaluating the performance of our deployments with the VPA in *
 If we find that our workloads support in-place updates and the VPA is providing accurate recommendations,
 we may consider moving to **InPlaceOrRecreate** mode in the future.
 
-However, the minReplicas setting on the VPA currently prevents us from using this mode, as it requires at least 2 replicas 
-to enable recreation of pods. Our options are to either:
+However, the minReplicas setting on the VPA currently prevents us from using this mode in all cases as it requires at least 2 replicas 
+to enable recreation of pods. For workloads with a single replica, our options are to either:
 - Reduce the minReplicas to 1 and accept the risk of downtime during pod recreation (if in-place updates are not possible).
 - Keep using **Initial** mode and manually adjust resources as needed.
 
 Ultimately, re-creating a pod would only be necessary if the node does not have sufficient resources to accommodate the new requests and limits.
-In this case, the pod would presumably be a candidate for throttling or eviction anyway.
+In this case, the pod would presumably be a candidate for throttling or eviction anyway. So re-creating them isn't a deal-breaker. 
