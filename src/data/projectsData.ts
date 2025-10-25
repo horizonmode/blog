@@ -12,12 +12,6 @@ const projectsData: Project[] = [
     imgSrc: '/static/images/gym.jpeg',
     href: '/blog/blitz-gym',
   },
-  {
-    title: 'International Rubgy Experience x OMM',
-    description: `An immersive museum experience about the history of Rugby.`,
-    imgSrc: '/static/images/ire.jpg',
-    href: '/blog/international-rugby-experience',
-  },
 ]
 
 export default projectsData
