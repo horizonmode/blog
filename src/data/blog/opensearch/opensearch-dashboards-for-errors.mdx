@@ -22,7 +22,7 @@ Our Setup:
 
 So we decided to integrate Fluent Bit with OpenSearch and use OpenSearch Dashboards for visualization. This way, we can leverage our existing infrastructure and avoid the overhead of introducing new tools.
 
-### Step 1: Configure Fluent Bit to Send Logs to OpenSearch
+## Step 1: Configure Fluent Bit to Send Logs to OpenSearch
 First, we need to configure Fluent Bit to send logs to OpenSearch. 
 We can do this by adding an output configuration in Fluent Bit's configuration file. Here's an example of how to set it up:
 
@@ -173,10 +173,10 @@ Make sure to replace `<OPENSEARCH_HOST>` with the actual hostname or IP address 
 This configuration will allow Fluent Bit to collect logs from the specified path, filter out unnecessary logs, and send the relevant logs to OpenSearch for indexing.
 It filters out logs from the `kube-system`, `logging`, `opensearch-dashboards`, and `opensearch` namespaces, as well as logs from the `opensearch-dashboards` and `opensearch` pods. It also excludes logs that match certain patterns (e.g., static assets, successful HTTP responses) and includes only logs that contain keywords like "error", "failed", or "exception". Additionally, it filters out PostgreSQL checkpoint logs and info level logs to focus on more relevant error logs.
 
-### Step 2: Set Up OpenSearch Dashboards
+## Step 2: Set Up OpenSearch Dashboards
 Next, we need to set up OpenSearch Dashboards to visualize the logs. We can create an index pattern in OpenSearch Dashboards that matches the index we specified in Fluent Bit (e.g., `fluentbit-logs*`). This will allow us to explore the logs and create visualizations based on the data.
 
-## Create Dashboards Pods
+### Create Dashboards Pods
 To create the OpenSearch Dashboards pods, we can use the following Kubernetes manifest:
 
 ```yaml
@@ -243,11 +243,11 @@ OpenSearch instance. This manifest will create a deployment for OpenSearch Dashb
 
 *Note: The `DISABLE_SECURITY_DASHBOARDS_PLUGIN` environment variable is set to "true" to disable the security plugin in OpenSearch Dashboards, which is necessary if you are not using the security features of OpenSearch. If you are using the security features, you will need to configure the appropriate authentication and authorization settings.
 
-### Step 3: View Indexed Logs in OpenSearch Dashboards
+## Step 3: View Indexed Logs in OpenSearch Dashboards
 Once Fluent Bit is configured and OpenSearch Dashboards is set up, you can access OpenSearch
 Dashboards through the service you created. You can then create visualizations and dashboards to analyze the logs collected by Fluent Bit. This will allow you to easily identify and troubleshoot errors in your applications.
 
-## Login to OpenSearch Dashboards
+### Login to OpenSearch Dashboards
 To log in to OpenSearch Dashboards, you can use the following command to port-forward the
 service to your local machine:
 
@@ -256,22 +256,22 @@ kubectl port-forward service/opensearch-dashboards <LOCAL_PORT>:<PORT> -n <NAMES
 ```
 Make sure to replace `<LOCAL_PORT>`, `<PORT>`, and `<NAMESPACE>` with the appropriate values for your setup. Once you have port-forwarded the service, you can access OpenSearch Dashboards by navigating to `http://localhost:<LOCAL_PORT>` in your web browser.
 
-## Test Indexes Exist
+### Test Indexes Exist
 
 Browsing to Configuration > Index Patterns, you can create a new index pattern that matches the index name specified in Fluent Bit (e.g., `fluentbit-logs*`). This will allow you to explore the logs and create visualizations based on the data.
 See image below:
 ![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboards.png)
 
-## Explore Logs
+### Explore Logs
 
 Once you have created the index pattern, you can use the Discover tab in OpenSearch Dashboards to explore the logs. You can filter and search through the logs to find relevant information about errors and issues in your applications. You can also create visualizations and dashboards to monitor the health of your applications and quickly identify any problems.
 
 ![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboards-explore.png)
 
-### Retention and Storage Considerations
+## Retention and Storage Considerations
 When integrating Fluent Bit with OpenSearch, it's important to consider the retention and storage of your logs. OpenSearch can consume a significant amount of storage if logs are not properly managed. You may want to set up index lifecycle management policies in OpenSearch to automatically delete old logs after a certain period of time or when the index reaches a certain size. Additionally, you can configure Fluent Bit to only send relevant logs to OpenSearch, as shown in the configuration example above, to reduce the amount of data being indexed.
 
-## Example Index Lifecycle Management Policy
+### Example Index Lifecycle Management Policy
 Here's an example of how to set up an index lifecycle management policy in OpenSearch to manage log
 retention:
 
@@ -299,7 +299,7 @@ retention:
 ```
 This policy will roll over the index when it reaches 50GB in size or is 30 days old, and it will delete indices that are older than 90 days. You can customize these values based on your specific needs and storage capacity.
 
-### Conclusion
+## Conclusion
 By integrating Fluent Bit with OpenSearch and using OpenSearch Dashboards, we have a powerful and
 efficient log management solution that fits well with our existing infrastructure. This setup allows us to easily visualize and analyze our logs without the need for additional tools, making it a great choice for our Kubernetes environment on Linode.
 
