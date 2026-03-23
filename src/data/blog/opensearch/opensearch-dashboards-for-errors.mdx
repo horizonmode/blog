@@ -260,13 +260,13 @@ Make sure to replace `<LOCAL_PORT>`, `<PORT>`, and `<NAMESPACE>` with the approp
 
 Browsing to Configuration > Index Patterns, you can create a new index pattern that matches the index name specified in Fluent Bit (e.g., `fluentbit-logs*`). This will allow you to explore the logs and create visualizations based on the data.
 See image below:
-![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboards.png)
+![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboard.png)
 
 ### Explore Logs
 
 Once you have created the index pattern, you can use the Discover tab in OpenSearch Dashboards to explore the logs. You can filter and search through the logs to find relevant information about errors and issues in your applications. You can also create visualizations and dashboards to monitor the health of your applications and quickly identify any problems.
 
-![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboards-explore.png)
+![OpenSearch Dashboards Index Pattern](/static/images/opensearch-dashboard-discover.png)
 
 ## Retention and Storage Considerations
 When integrating Fluent Bit with OpenSearch, it's important to consider the retention and storage of your logs. OpenSearch can consume a significant amount of storage if logs are not properly managed. You may want to set up index lifecycle management policies in OpenSearch to automatically delete old logs after a certain period of time or when the index reaches a certain size. Additionally, you can configure Fluent Bit to only send relevant logs to OpenSearch, as shown in the configuration example above, to reduce the amount of data being indexed.
