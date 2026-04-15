@@ -1,0 +1,114 @@
+<svg width="1600" height="900" viewBox="0 0 1600 900" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="title desc">
+  <title id="title">Psychological Safety in Technical Teams</title>
+  <desc id="desc">An infographic showing three zones: too little safety, healthy challenge, and false harmony, with guardrails and emotional intelligence as the foundation.</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1600" y2="900" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FAFC"></stop>
+      <stop offset="1" stop-color="#E2E8F0"></stop>
+    </linearGradient>
+
+    <linearGradient id="midGlow" x1="800" y1="180" x2="800" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#DBEAFE"></stop>
+      <stop offset="1" stop-color="#EFF6FF"></stop>
+    </linearGradient>
+
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="10" stdDeviation="18" flood-color="#0F172A" flood-opacity="0.10"></feDropShadow>
+    </filter>
+
+    <style>
+      .title { font: 700 54px Inter, Arial, sans-serif; fill: #0F172A; }
+      .subtitle { font: 400 24px Inter, Arial, sans-serif; fill: #334155; }
+      .zoneTitle { font: 700 30px Inter, Arial, sans-serif; }
+      .zoneSub { font: 600 18px Inter, Arial, sans-serif; letter-spacing: 0.08em; text-transform: uppercase; }
+      .body { font: 500 22px Inter, Arial, sans-serif; fill: #1E293B; }
+      .small { font: 500 18px Inter, Arial, sans-serif; fill: #334155; }
+      .footer { font: 700 28px Inter, Arial, sans-serif; fill: #0F172A; }
+      .pillText { font: 700 18px Inter, Arial, sans-serif; fill: white; }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="url(#bg)"></rect>
+
+  <!-- Header -->
+  <text x="800" y="88" text-anchor="middle" class="title">Psychological Safety in Technical Teams</text>
+  <text x="800" y="128" text-anchor="middle" class="subtitle">
+    Safety matters — but only when paired with challenge, guardrails, and emotional intelligence
+  </text>
+
+  <!-- Connecting line -->
+  <line x1="210" y1="445" x2="1390" y2="445" stroke="#CBD5E1" stroke-width="10" stroke-linecap="round"></line>
+
+  <!-- Left zone -->
+  <g filter="url(#shadow)">
+    <rect x="90" y="190" width="420" height="470" rx="32" fill="#FFF1F2"></rect>
+  </g>
+  <circle cx="300" cy="252" r="36" fill="#FEE2E2"></circle>
+  <text x="300" y="264" text-anchor="middle" font-size="34" font-family="Arial, sans-serif" fill="#DC2626">!</text>
+
+  <text x="300" y="325" text-anchor="middle" class="zoneSub" fill="#B91C1C">Too Little Safety</text>
+  <text x="300" y="368" text-anchor="middle" class="zoneTitle" fill="#7F1D1D">Silence and hidden risk</text>
+
+  <text x="145" y="440" class="body">• People stay quiet in meetings</text>
+  <text x="145" y="486" class="body">• Concerns go unspoken</text>
+  <text x="145" y="532" class="body">• Junior voices hold back</text>
+  <text x="145" y="578" class="body">• Risks surface too late</text>
+
+  <rect x="182" y="612" width="236" height="38" rx="19" fill="#DC2626"></rect>
+  <text x="300" y="637" text-anchor="middle" class="pillText">Fear suppresses challenge</text>
+
+  <!-- Middle zone -->
+  <g filter="url(#shadow)">
+    <rect x="560" y="145" width="480" height="560" rx="36" fill="url(#midGlow)" stroke="#93C5FD" stroke-width="2"></rect>
+  </g>
+  <circle cx="800" cy="225" r="42" fill="#DBEAFE"></circle>
+  <text x="800" y="238" text-anchor="middle" font-size="36" font-family="Arial, sans-serif" fill="#2563EB">✓</text>
+
+  <text x="800" y="310" text-anchor="middle" class="zoneSub" fill="#1D4ED8">Healthy Zone</text>
+  <text x="800" y="356" text-anchor="middle" class="zoneTitle" fill="#1E3A8A">Safe conflict, better decisions</text>
+
+  <text x="620" y="430" class="body">• People speak up early</text>
+  <text x="620" y="476" class="body">• Ideas are challenged, not people</text>
+  <text x="620" y="522" class="body">• Trade-offs are discussed openly</text>
+  <text x="620" y="568" class="body">• Trust survives disagreement</text>
+
+  <rect x="669" y="610" width="262" height="40" rx="20" fill="#2563EB"></rect>
+  <text x="800" y="636" text-anchor="middle" class="pillText">Challenge improves outcomes</text>
+
+  <!-- Right zone -->
+  <g filter="url(#shadow)">
+    <rect x="1090" y="190" width="420" height="470" rx="32" fill="#FFF7ED"></rect>
+  </g>
+  <circle cx="1300" cy="252" r="36" fill="#FFEDD5"></circle>
+  <text x="1300" y="264" text-anchor="middle" font-size="30" font-family="Arial, sans-serif" fill="#EA580C">≈</text>
+
+  <text x="1300" y="325" text-anchor="middle" class="zoneSub" fill="#C2410C">False Harmony</text>
+  <text x="1300" y="368" text-anchor="middle" class="zoneTitle" fill="#9A3412">Comfort without challenge</text>
+
+  <text x="1145" y="440" class="body">• Tension gets avoided</text>
+  <text x="1145" y="486" class="body">• Teams stay overly polite</text>
+  <text x="1145" y="532" class="body">• Weak ideas go untested</text>
+  <text x="1145" y="578" class="body">• Decisions drift toward consensus</text>
+
+  <rect x="1174" y="612" width="252" height="38" rx="19" fill="#EA580C"></rect>
+  <text x="1300" y="637" text-anchor="middle" class="pillText">Avoidance weakens teams</text>
+
+
+  <!-- Guardrails -->
+  <g filter="url(#shadow)">
+    <rect x="220" y="730" width="1160" height="110" rx="28" fill="white"></rect>
+  </g>
+
+  <text x="800" y="775" text-anchor="middle" class="footer">Guardrails for healthy conflict</text>
+
+  <text x="300" y="815" text-anchor="left" class="small">Challenge ideas, not people</text>
+  <text x="580" y="815" text-anchor="left" class="small">Use evidence over opinion</text>
+  <text x="865" y="815" text-anchor="left" class="small">Assume positive intent</text>
+  <text x="1180" y="815" text-anchor="middle" class="small">Disagree, then commit</text>
+
+  <!-- Bottom note -->
+  <text x="800" y="875" text-anchor="middle" class="subtitle">
+    Emotional intelligence is what allows teams to handle tension without causing harm
+  </text>
+</svg>
