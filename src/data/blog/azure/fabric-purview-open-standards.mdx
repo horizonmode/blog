@@ -1,0 +1,198 @@
+---
+title: Microsoft Fabric and Purview are Open Standards in Disguise
+date: '2026-07-25'
+tags: ['azure', 'microsoft-fabric', 'purview', 'open-standards', 'data']
+draft: false
+summary: Microsoft Fabric and Purview look like proprietary Microsoft products on the surface, but underneath they are largely built on widely adopted open standards and open source projects.
+---
+
+There is a common assumption that adopting Microsoft Fabric or Purview means locking yourself into a Microsoft-specific ecosystem. 
+That assumption is worth questioning.
+
+Both products are substantially built on open standards and open source technologies that exist independently of Microsoft. 
+Understanding what is underneath matters — it affects how portable your data is, 
+how transferable your skills are, and how much leverage you actually have as a consumer.
+
+## Microsoft Fabric
+
+Fabric is Microsoft's unified analytics platform. It combines data engineering, data science, real-time analytics, and business intelligence into a single product. 
+The headline pitch is consolidation — one platform instead of many.
+
+But look at the components and the open standards start to appear.
+
+### Delta Lake
+
+The foundational storage format in Fabric is [Delta Lake](https://delta.io/). 
+OneLake, which is the shared storage layer at the heart of Fabric, stores all data in Delta format by default.
+
+Delta Lake is an open source project, originally developed by Databricks and now hosted by the Linux Foundation. 
+It is not Microsoft-specific. The same Delta tables stored in OneLake can be read directly by Databricks, Apache Spark, or any other engine that supports the Delta protocol.
+
+This is a meaningful guarantee. Your data is not locked into a proprietary binary format.
+
+### Apache Parquet
+
+Delta Lake itself is built on [Apache Parquet](https://parquet.apache.org/) — an open columnar file format for structured data.
+
+If you navigate to your OneLake storage in Azure Data Lake Storage Gen2, you will find your tables stored as `.parquet` files. 
+These are readable by any tool that understands Parquet — which is most modern data tooling.
+
+```bash
+# The physical files in OneLake look like this:
+myworkspace.dfs.core.windows.net/
+  mylakehouse.Lakehouse/
+    Tables/
+      mytable/
+        _delta_log/
+        part-00000-abc.snappy.parquet
+        part-00001-def.snappy.parquet
+```
+
+The Delta log is a JSON transaction log that tracks changes. The data itself is plain Parquet.
+
+### Apache Spark
+
+The compute engine in Fabric Notebooks and Spark Job Definitions is [Apache Spark](https://spark.apache.org/).
+
+Fabric runs a managed version of Spark, but the code you write is standard PySpark or Scala Spark. 
+If you move to Databricks, Azure HDInsight, or a self-hosted Spark cluster, your notebooks go with you.
+
+```python
+# Standard PySpark — runs identically in Fabric or Databricks
+from pyspark.sql.functions import col, count
+
+df = spark.read.format("delta").load("Tables/orders")
+df.groupBy("region").agg(count("*").alias("total")).show()
+```
+
+Fabric wraps Spark with a managed runtime and a polished UI, but it is not inventing a new compute model.
+
+### Apache Kafka
+
+[Eventstream](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/event-streams/overview) is Fabric's real-time data ingestion feature. 
+It supports ingesting events from Kafka-compatible sources directly.
+
+More significantly, Fabric's Real-Time Hub exposes a Kafka-compatible endpoint, meaning existing Kafka producers can 
+stream data into Fabric without any code changes.
+
+```json
+{
+  "bootstrap.servers": "<fabric-eventhouse>.servicebus.windows.net:9093",
+  "security.protocol": "SASL_SSL",
+  "sasl.mechanism": "PLAIN"
+}
+```
+
+This is the same configuration pattern used with Azure Event Hubs and any other Kafka-compatible broker.
+
+### Apache Arrow
+
+Under the hood, Fabric uses [Apache Arrow](https://arrow.apache.org/) for in-memory data interchange. 
+Arrow provides a language-independent columnar memory format, which is why data can move efficiently between Spark, Python, and the Fabric runtime without repeated serialisation.
+
+You are unlikely to interact with Arrow directly, but it is why operations like `.toPandas()` in PySpark work efficiently.
+
+## Microsoft Purview
+
+Purview is Microsoft's data governance product. It handles data cataloguing, lineage tracking, classification, and access policies. 
+
+Again, beneath the product surface, open standards appear.
+
+### Apache Atlas
+
+The Purview Data Map — which is the metadata store at the centre of Purview — is built on [Apache Atlas](https://atlas.apache.org/).
+
+Atlas is an open source metadata and governance framework from the Apache Software Foundation, 
+originally developed at Hortonworks for the Hadoop ecosystem. 
+Purview exposes an Atlas-compatible REST API, meaning tools built against the Atlas API can interact with Purview directly.
+
+```http
+GET https://{purview-account}.purview.azure.com/catalog/api/atlas/v2/entity/guid/{guid}
+Authorization: ******
+```
+
+The Atlas entity model — types, classifications, relationships — is the same model that Purview uses internally. 
+If you have worked with Atlas before, the Purview data model will look familiar.
+
+### OpenLineage
+
+[OpenLineage](https://openlineage.io/) is an open standard for tracking data lineage — who produced a dataset, when, and from what inputs.
+
+Purview supports ingesting OpenLineage events, allowing pipelines built outside of Azure to report their lineage 
+to Purview in a standard format. Spark jobs, dbt models, and Airflow DAGs can all emit OpenLineage events.
+
+```json
+{
+  "eventType": "COMPLETE",
+  "eventTime": "2026-07-25T10:00:00Z",
+  "run": {
+    "runId": "a1b2c3d4-..."
+  },
+  "job": {
+    "namespace": "my-spark-cluster",
+    "name": "transform_orders"
+  },
+  "inputs": [{"namespace": "s3://datalake", "name": "raw/orders"}],
+  "outputs": [{"namespace": "s3://datalake", "name": "processed/orders"}]
+}
+```
+
+This means lineage in Purview is not limited to data that flows through Azure services. 
+Any pipeline that can emit OpenLineage events can contribute to the lineage graph.
+
+### OpenAPI
+
+All Purview APIs are documented and accessible via [OpenAPI](https://www.openapis.org/) specifications. 
+This is not unique to Purview — most Azure products follow this — but it is worth stating. 
+Programmatic access to the catalog, scanning results, and classification rules is done via standard REST.
+
+## Why This Matters
+
+There are a few practical implications worth drawing out.
+
+**Data portability is real.** Because OneLake uses Delta Lake on Parquet, your data is readable outside of Fabric 
+without any export step. You can point Databricks, a local Spark environment, or even DuckDB at the same storage 
+account and query the data directly.
+
+```python
+# DuckDB reading Delta tables from OneLake directly
+import duckdb
+
+conn = duckdb.connect()
+conn.execute("INSTALL delta; LOAD delta;")
+df = conn.execute("""
+    SELECT * FROM delta_scan('abfss://workspace@onelake.dfs.fabric.microsoft.com/lakehouse.Lakehouse/Tables/orders')
+""").fetchdf()
+```
+
+**Skill transferability is higher than it looks.** PySpark skills developed on Fabric apply directly on Databricks. 
+Knowledge of the Atlas entity model applies across any Atlas-based catalog. 
+OpenLineage integrations written for Purview also work with Marquez or other OpenLineage backends.
+
+**Vendor lock-in is mostly at the product layer, not the data layer.** 
+The workflows, the UX, the managed runtimes — those are Microsoft-specific. 
+The underlying data formats and APIs are not. 
+The risk of lock-in comes from building too many dependencies on the managed convenience features 
+rather than from the data storage itself.
+
+## Conclusion
+
+Microsoft Fabric and Purview are genuinely useful products. The managed runtime, the integration between components, and the unified interface add real value.
+
+But they are best understood as a curated packaging of open standards rather than proprietary black boxes. 
+Delta Lake, Apache Parquet, Apache Spark, Apache Kafka, Apache Atlas, and OpenLineage are all independent projects 
+with communities and implementations that exist entirely outside of Microsoft.
+
+That is a reasonable thing to know before adopting either product — and a reasonable thing to use 
+as leverage when thinking about architecture, portability, and long-term platform strategy.
+
+## References
+
+- Linux Foundation Delta Lake: https://delta.io/
+- Apache Parquet: https://parquet.apache.org/
+- Apache Spark: https://spark.apache.org/
+- Apache Arrow: https://arrow.apache.org/
+- Apache Atlas: https://atlas.apache.org/
+- OpenLineage: https://openlineage.io/
+- Microsoft Fabric OneLake: https://learn.microsoft.com/en-us/fabric/onelake/onelake-overview
+- Microsoft Purview Atlas API: https://learn.microsoft.com/en-us/azure/purview/tutorial-using-rest-apis
