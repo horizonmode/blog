@@ -1,0 +1,73 @@
+---
+title: "Stopping Bot Traffic from Taking Down NGINX Ingress on Kubernetes"
+date: 2026-05-21
+tags: ["kubernetes", "nginx", "security", "incident", "cloudflare", "linode"]
+summary: "How we stabilized a Kubernetes-hosted site under bot pressure using Cloudflare Tunnel, ingress rate limiting, and Linode firewall controls."
+---
+
+# Incident: Bot Traffic Overwhelming NGINX Ingress
+
+We recently had an issue on one of our Kubernetes-hosted sites where bot traffic was high enough to repeatedly destabilize the ingress layer.
+
+The impact was immediate:
+- NGINX Ingress Controller pods were overwhelmed
+- Pods restarted under load
+- Site availability degraded as traffic spikes continued
+
+---
+
+## What We Did First
+
+Our first response was to block direct, non-Cloudflare access.
+
+To do this, we introduced a **Cloudflare Tunnel** so traffic had to come through Cloudflare instead of hitting the ingress endpoint directly.
+
+This removed a large amount of unwanted direct traffic and reduced exposure.
+
+---
+
+## Why That Wasn’t Enough
+
+Even after excluding non-Cloudflare traffic, request volume was still too high and noisy.
+
+The remaining traffic pattern still caused enough pressure to keep ingress stability at risk, especially during bursts.
+
+At that point, it was clear we needed additional layers of protection.
+
+---
+
+## Layer 2: Rate Limiting on NGINX Ingress
+
+We added rate limiting rules at the ingress layer to control how aggressively clients could hit endpoints.
+
+This gave us better control over request floods and reduced the chance of ingress exhaustion from repeated high-frequency requests.
+
+---
+
+## Layer 3: Linode Firewall Controls
+
+We also tightened network-level filtering with the **Linode firewall**.
+
+This added another gate before traffic could reach cluster components and helped reduce unnecessary load at the infrastructure edge.
+
+---
+
+## Outcome
+
+After combining these controls:
+- Ingress restarts stopped
+- Site stability improved
+- Bot-driven traffic spikes became manageable
+
+---
+
+## Key Takeaway
+
+No single control solved this incident by itself.
+
+The effective approach was layered:
+1. Restrict entry path (**Cloudflare Tunnel**)
+2. Control request behavior (**NGINX ingress rate limiting**)
+3. Enforce network boundaries (**Linode firewall**)
+
+For bot-heavy traffic events in Kubernetes, defense in depth is what restores reliability.
