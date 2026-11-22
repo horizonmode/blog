@@ -4,19 +4,25 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+  pull-requests: read
+  deployments: write
+
 jobs:
   validate_entry:
     runs-on: ubuntu-latest
     outputs:
       src: ${{ steps.filter.outputs.src }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
         id: filter
         with:
           filters: |
             src:
                - 'src/**'
+               - '.github/workflows/**'
 
   build_job:
     needs: validate_entry
@@ -30,15 +36,15 @@ jobs:
       NEXT_PUBLIC_GISCUS_CATEGORY: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY }}
       NEXT_PUBLIC_GISCUS_CATEGORY_ID: ${{ vars.NEXT_PUBLIC_GISCUS_CATEGORY_ID }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           submodules: true
           lfs: false
 
       - name: Use Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: "20.x"
+          node-version: "22"
           cache: "npm"
           cache-dependency-path: "src/package-lock.json"
 
@@ -49,7 +55,7 @@ jobs:
           npm run build
 
       - name: Upload build folder
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build
           path: src/out
@@ -65,28 +71,28 @@ jobs:
     name: Deploy to Staging
     environment: staging
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
       - name: Download build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build
           path: build
 
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v4
         id: deploy_to_staging
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
-          directory: build
-          # Optional: Enable this if you want to have GitHub Deployments triggered
+          command: pages deploy build --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}" --branch=staging
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          # Optional: Switch what branch you are publishing to.
-          # By default this will be the branch which triggered this workflow
-          branch: staging
 
     outputs:
-      staging_url: ${{ steps.deploy_to_staging.outputs.url }}
+      staging_url: ${{ steps.deploy_to_staging.outputs.deployment-url }}
 
   run_e2e_tests_staging:
     needs: deploy_to_staging
@@ -102,18 +108,21 @@ jobs:
     name: Deploy to Production
     environment: production
     steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          package-manager-cache: false
       - name: Download build
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: build
           path: build
 
       - name: Publish to Cloudflare Pages
-        uses: cloudflare/pages-action@v1
+        uses: cloudflare/wrangler-action@v4
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ vars.CLOUDFLARE_PROJECT_NAME }}
-          directory: build
+          command: pages deploy build --project-name="${{ vars.CLOUDFLARE_PROJECT_NAME }}" --branch=main
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-          branch: main
