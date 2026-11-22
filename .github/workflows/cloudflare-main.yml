@@ -51,7 +51,7 @@ jobs:
       - name: run npm commands
         working-directory: src
         run: |
-          npm i --legacy-peer-deps
+          npm ci
           npm run build
 
       - name: Upload build folder
