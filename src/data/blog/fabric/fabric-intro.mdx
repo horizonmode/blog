@@ -7,7 +7,7 @@ summary: "Thoughts on Microsoft Fabric after one year of plqnning, rollout and i
 
 # The Background
 
-Microsoft Fabric is a new Unified Data Platform in the Analytics space, designed at a high level
+[Microsoft Fabric](https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview) is a new Unified Data Platform in the Analytics space, designed at a high level
 to bring together Data Science, Data Engineering and Analytics workloads in a single platform. 
 They've also added some Transactional Database support with standard PaaS Microsoft SQLServer also 
 on the same platform. 
@@ -19,6 +19,10 @@ although some configuration, maintenance and monitoring are still required.
 After one year of rolling this platform out at an enterprise level, I have identified some clear wins, 
 and we have also experienced some significant challenges:
 
+[![Microsoft Fabric workloads on a shared SaaS foundation](/static/images/fabric/fabric-architecture.png)](https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview)
+
+*Source: [Microsoft Learn](https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview).*
+
 ## Wins
 
 ### Accessibility and Wide Adoption 
@@ -29,49 +33,54 @@ Some of these are Data Scientists and Engineers, but many are non-technical. Fab
 to have a low barrier to entry, whilst also being able to scale-up 
 if required. For instance, users have quickly brought in data from Sharepoint Lists 
 into a workspace and created reports, replacing what was previously done in Excel. 
+Engineers familiar with Azure Data Factory have also found it particularly easy to transfer their skills
 
 ### Deployment Flexibility
 
 Developers and Engineers are able to connect to GitHub or Azure DevOps in 
-differnet modes, and migrate changes across workspaces using Source Control or Fabric Deployment Pipelines.
+differnet modes, and migrate changes across workspaces using [Source Control](https://learn.microsoft.com/en-us/fabric/cicd/git-integration/intro-to-git-integration) or [Fabric Deployment Pipelines](https://learn.microsoft.com/en-us/fabric/cicd/deployment-pipelines/intro-to-deployment-pipelines).
 However this is optional, and business users can instead choose to have a single workspace
 and use native tools to manage versioning. Versioning mechanisms
-are different per Fabric item type, but Notebooks for example have rollback and editing history built-in.
+are different per Fabric item type, but [Notebooks](https://learn.microsoft.com/en-us/fabric/data-engineering/how-to-use-notebook) for example have rollback and editing history built-in.
 
 ### Easy Ingestion
 
 The value customers get out of the platform is positively correlated with the 
 number of data sources on-boarded, and as such Microsoft have made this flexible. 
 If sources are within the Microsoft eco-system it's often possible to set up
-shortcuts or mirroring which are the easiest option. If not, you have 
-a range of low-code (Copy Jobs, Dataflow Gen 2) and Pro-code (Notebooks) options
+[shortcuts](https://learn.microsoft.com/en-us/fabric/onelake/onelake-shortcuts) or [mirroring](https://learn.microsoft.com/en-us/fabric/database/mirrored-database/overview) which are the easiest option. If not, you have 
+a range of low-code ([Copy Jobs](https://learn.microsoft.com/en-us/fabric/data-factory/copy-job), [Dataflow Gen 2](https://learn.microsoft.com/en-us/fabric/data-factory/dataflows-gen2-overview)) and Pro-code (Notebooks) options
 to perform periodic ingestion. There is also a separate path for ingesting
-events with the real-time stack.
+events with the [real-time stack](https://learn.microsoft.com/en-us/fabric/real-time-intelligence/overview).
 
 ### Power BI
 
 If you are already using Power BI, Fabric extends the same tools and portal experience. There 
 is also wide support of Fabric data sources within Power BI Desktop and the Power BI Web experience. 
-Semantic Models are used as the modelling layer for reports, and these can be edited and created
+[Semantic Models](https://learn.microsoft.com/en-us/power-bi/connect-data/service-datasets-understand) are used as the modelling layer for reports, and these can be edited and created
 independently within a Fabric workspace. Also, see challenges on this. 
 
 ### Reverse ETL and Translytical
 
-We've had some success with User-Defined functions in Fabric, which allow you 
+We've had some success with [User-Defined functions](https://learn.microsoft.com/en-us/fabric/data-engineering/user-data-functions/user-data-functions-overview) in Fabric, which allow you 
 to have lightweight trnsactional workflows embedded into Power BI Reports. 
 This has meant we have not needed to create an entirely separate application 
 where there is a marginal transactional requirement. This also works well 
 when the Power BI Reports are in the same Fabric workspace as the data it references, 
-with Power BI Apps providing the publish mechanism for the entire solution.
+with [Power BI Apps](https://learn.microsoft.com/en-us/power-bi/collaborate-share/service-create-distribute-apps) providing the publish mechanism for the entire solution.
 
 ### Lakehouses
 
-A common starting point for all users is the lakehouse, providing 
+A common starting point for all users is the [lakehouse](https://learn.microsoft.com/en-us/fabric/data-engineering/lakehouse-overview), providing 
 the ability to upload, ingest and store data in it's raw form, 
 then generate delta parquet tables to use for analysis and reporting.
-This has proved accessible for all types of users. The lakehouse also provides a SQL Endpoint to query data. 
-The lakehouse also comes in Data Warehouse flavour if the skill-set
+This has proved accessible for all types of users. The lakehouse also provides a [SQL Endpoint](https://learn.microsoft.com/en-us/fabric/data-warehouse/sql-analytics-endpoint-performance) to query data. 
+The lakehouse also comes in [Data Warehouse](https://learn.microsoft.com/en-us/fabric/data-warehouse/data-warehousing) flavour if the skill-set
 of users is closer aligned to Microsoft SQLServer Data Warehouse.
+
+[![Fabric experiences accessing shared OneLake storage](/static/images/fabric/onelake-architecture.png)](https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview)
+
+*Source: [Microsoft Learn](https://learn.microsoft.com/en-us/fabric/fundamentals/microsoft-fabric-overview).*
 
 ## Challenges
 
@@ -91,13 +100,13 @@ The challenge is in finding a model which satisfies these conditions:
 ### Workspace Standards
 
 Similarly, workspace administration has similar challenges. We ended up having naming convention which 
-included Domains, workspace type (personal, team-productivity or application) and optional 
+included [Domains](https://learn.microsoft.com/en-us/fabric/governance/domains), workspace type (personal, team-productivity or application) and optional 
 features such as environment. Linking these to the Domain Model managed in the Power BI / Fabric tenant
 was also initially helpful but required alignment across the organisation.
 
 ### Tenant Settings 
 
-Tenant Settings were difficult to get right. Examples of these were: 
+[Tenant Settings were](https://learn.microsoft.com/en-us/fabric/admin/tenant-settings-index) difficult to get right. Examples of these were: 
 
 - Semantic Model editing permissions making it impossible for users to create any Power BI Reports in the portal
 - XLMA permissions for live Excel based reporting stopping Excel connections
@@ -115,9 +124,13 @@ and connections, meaning we ended up with a list of post-deployment manual steps
 - Connection strings both within and external to Fabric
 - Labels and user-facing text
 
+[![Fabric deployment pipeline showing Development, Test, and Production side by side](/static/images/fabric/deployment-pipeline.png)](https://learn.microsoft.com/en-us/fabric/cicd/deployment-pipelines/intro-to-deployment-pipelines)
+
+*Source: [Microsoft Learn](https://learn.microsoft.com/en-us/fabric/cicd/deployment-pipelines/intro-to-deployment-pipelines).*
+
 ### Connection Management
 
-This was a steep learning curve. Connections are first-class objects in Fabric and can be managed from 
+This was a steep learning curve. [Connections are first-class objects](https://learn.microsoft.com/en-us/fabric/data-factory/connection-management-overview) in Fabric and can be managed from 
 a dedicated admin area. One limitation is that if one user creates a connection, another user 
 cannot use it by default unless it's explictitly shared. This also applies to trying 
 to use the connection in a Deployment Pipeline. Even administrators cannot access
@@ -131,7 +144,7 @@ Using an Entra group for anyone needing developer access to a workspace also hel
 Adding users to a workspace is trivial but we experienced challenges when considering 
 how best to share Power BI Reports and Dashboards. Power BI Apps are used where possible but 
 we wanted Apps to remain focused on corporate use-cases. For end users trying to share a custom dashboard 
-outside of their time, this seemed overkill. We are currently exploring Org Apps for this, or whether to allow
+outside of their time, this seemed overkill. We are currently exploring [Org Apps](https://learn.microsoft.com/en-us/fabric/org-apps/overview) for this, or whether to allow
 workspace contributors the ability to directly share their reports and dashboards without an app. 
 
 
